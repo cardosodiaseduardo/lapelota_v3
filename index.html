@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Pelada PRO - v1.10</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; overflow: hidden; } /* Remove scroll da página */
+        .draggable-item { cursor: grab; touch-action: none; }
+        .draggable-item:active { cursor: grabbing; }
+        .font-mono-nums { font-variant-numeric: tabular-nums; }
+        
+        /* Scrollbar fina e escura */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        
+        .drag-over-item { border-top: 2px solid #34d399 !important; }
+
+        /* Animação rápida de bola quando sai gol */
+        .confetti-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, rgba(15, 23, 42, 0.9), transparent 70%);
+            animation: goal-fade 0.8s ease-out forwards;
+        }
+
+        .goal-ball {
+            width: 120px;
+            height: 120px;
+            border-radius: 9999px;
+            background: radial-gradient(circle at 30% 30%, #ffffff, #e5e7eb);
+            box-shadow:
+                0 0 40px rgba(250, 250, 250, 0.8),
+                0 0 80px rgba(56, 189, 248, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #020617;
+            animation: goal-ball-pop 0.8s ease-out forwards;
+        }
+
+        .goal-ball i {
+            font-size: 56px;
+        }
+
+        @keyframes goal-fade {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        @keyframes goal-ball-pop {
+            0% {
+                transform: scale(0.4) translateY(40px);
+            }
+            30% {
+                transform: scale(1.05) translateY(0);
+            }
+            60% {
+                transform: scale(0.95) translateY(-6px);
+            }
+            100% {
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* Overlay de alerta: tempo acabando (fundo vermelho blur 80%, card pisca 5s) */
+        .time-warning-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(127, 29, 29, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            cursor: pointer;
+        }
+        .time-warning-card {
+            background: rgba(185, 28, 28, 0.95);
+            border: 3px solid rgba(254, 226, 226, 0.9);
+            border-radius: 1rem;
+            padding: 1.5rem 2rem;
+            text-align: center;
+            max-width: 90%;
+            box-shadow: 0 0 40px rgba(185, 28, 28, 0.8);
+            animation: time-warning-blink 0.6s ease-in-out infinite;
+        }
+        @keyframes time-warning-blink {
+            0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 40px rgba(185, 28, 28, 0.8); }
+            50% { opacity: 0.85; transform: scale(1.02); box-shadow: 0 0 60px rgba(254, 202, 202, 0.6); }
+        }
+        /* Variante laranja: partida acabou */
+        .time-warning-overlay.time-warning-ended {
+            background: rgba(154, 52, 18, 0.85);
+        }
+        .time-warning-card.time-warning-ended {
+            background: rgba(194, 65, 12, 0.95);
+            border-color: rgba(254, 243, 199, 0.9);
+            box-shadow: 0 0 40px rgba(180, 83, 9, 0.8);
+            animation: time-warning-blink-orange 0.6s ease-in-out infinite;
+        }
+        @keyframes time-warning-blink-orange {
+            0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 40px rgba(180, 83, 9, 0.8); }
+            50% { opacity: 0.9; transform: scale(1.02); box-shadow: 0 0 60px rgba(251, 191, 36, 0.5); }
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 h-screen w-screen flex flex-col text-xs overflow-hidden">
+
+<div id="app" class="flex flex-col h-full w-full p-2 gap-2 max-w-[1600px] mx-auto">
+
+    <!-- Animação rápida de bola quando marca gol -->
+    <div v-if="ui.showGoalConfetti" class="confetti-overlay">
+        <div class="goal-ball">
+            <i class="ph ph-soccer-ball"></i>
+        </div>
+    </div>
+
+    <!-- Overlay de alerta: faltam X min (vermelho) ou partida acabou (laranja). Clique ou tecla fecha. -->
+    <div v-if="ui.showTimeWarning" class="time-warning-overlay" :class="{ 'time-warning-ended': ui.timeWarningEnded }" @click="dismissTimeWarning">
+        <div class="time-warning-card" :class="{ 'time-warning-ended': ui.timeWarningEnded }">
+            <i class="ph text-4xl text-white mb-2 block" :class="ui.timeWarningEnded ? 'ph-flag' : 'ph-clock-countdown'"></i>
+            <p class="text-white font-bold text-lg leading-tight">{{ ui.timeWarningMessage }}</p>
+        </div>
+    </div>
+
+    <!-- Modal: Alerta quando faltar (minutos + segundos, estilo placar) -->
+    <div v-if="ui.showAlertModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="ui.showAlertModal = false; saveData()">
+        <div class="bg-gray-900 rounded-lg border border-amber-600/40 shadow-xl w-full max-w-[280px] p-4">
+            <h3 class="text-[11px] font-bold text-amber-400 uppercase tracking-wider text-center mb-4">Alerta quando faltar</h3>
+            <div class="space-y-4">
+                <div class="flex flex-col items-center gap-1">
+                    <span class="text-[9px] font-bold text-gray-400 uppercase">Minutos</span>
+                    <div class="flex items-center gap-1 bg-black/30 rounded p-0.5 border border-amber-600/30">
+                        <button @click="config.alertMinutesLeft = Math.max(0, config.alertMinutesLeft - 1); saveData()" class="w-8 h-8 hover:bg-gray-700 rounded text-gray-400 flex items-center justify-center transition"><i class="ph ph-minus"></i></button>
+                        <span class="text-xl font-mono-nums font-bold w-10 text-center text-amber-400">{{ config.alertMinutesLeft }}</span>
+                        <button @click="config.alertMinutesLeft = Math.min(10, config.alertMinutesLeft + 1); saveData()" class="w-8 h-8 hover:bg-amber-900/50 rounded text-amber-400 flex items-center justify-center transition"><i class="ph ph-plus"></i></button>
+                    </div>
+                </div>
+                <div class="flex flex-col items-center gap-1">
+                    <span class="text-[9px] font-bold text-gray-400 uppercase">Segundos</span>
+                    <div class="flex items-center gap-1 bg-black/30 rounded p-0.5 border border-amber-600/30">
+                        <button @click="config.alertSecondsLeft = Math.max(0, config.alertSecondsLeft - 1); saveData()" class="w-8 h-8 hover:bg-gray-700 rounded text-gray-400 flex items-center justify-center transition"><i class="ph ph-minus"></i></button>
+                        <span class="text-xl font-mono-nums font-bold w-10 text-center text-amber-400">{{ config.alertSecondsLeft }}</span>
+                        <button @click="config.alertSecondsLeft = Math.min(59, config.alertSecondsLeft + 1); saveData()" class="w-8 h-8 hover:bg-amber-900/50 rounded text-amber-400 flex items-center justify-center transition"><i class="ph ph-plus"></i></button>
+                    </div>
+                </div>
+            </div>
+            <button @click="ui.showAlertModal = false; saveData()" class="w-full mt-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wide transition">
+                Fechar
+            </button>
+        </div>
+    </div>
+    
+    <header class="bg-gray-900 p-2 rounded-lg border border-gray-800 flex-shrink-0 flex justify-between items-center gap-2">
+        <div>
+            <h1 class="text-sm font-bold text-emerald-400 flex items-center gap-2">
+                <i class="ph ph-soccer-ball"></i> Gestão de Pelada
+            </h1>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1">
+                <span class="text-[9px] text-gray-500 uppercase font-bold">Tempo:</span>
+                <span class="font-bold text-emerald-400 text-[10px]">{{ status.isFirstMatch ? '10 min' : '7 min' }}</span>
+            </div>
+
+            <button @click="resetAll" class="text-red-400 hover:text-red-300 text-[10px] uppercase font-bold px-2 border-l border-gray-700">
+                Resetar
+            </button>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-1 min-h-0">
+        
+        <section class="lg:col-span-2 flex flex-col bg-gray-900 rounded-lg border border-gray-800 h-full overflow-hidden">
+            <div class="flex-shrink-0 border-b border-gray-800">
+                <div @click="ui.showRegister = !ui.showRegister" class="p-2 bg-gray-800 cursor-pointer flex justify-between items-center hover:bg-gray-750 transition">
+                    <h2 class="font-bold text-gray-300 flex items-center gap-1 text-[11px]"><i class="ph ph-users"></i> Cadastro</h2>
+                    <i class="ph text-xs" :class="ui.showRegister ? 'ph-caret-up' : 'ph-caret-down'"></i>
+                </div>
+                
+                <div v-show="ui.showRegister" class="p-2 space-y-1.5 bg-gray-900">
+                    <textarea v-model="input.lines" placeholder="Jogadores..." class="w-full bg-gray-950 border border-gray-700 rounded p-1.5 text-[10px] h-20 focus:ring-1 focus:ring-emerald-500 outline-none resize-none"></textarea>
+                    <button @click="addPlayers" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-1 rounded text-[10px] uppercase tracking-wide transition">Adicionar</button>
+                </div>
+            </div>
+
+            <div class="px-2 py-1.5 bg-gray-800 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+                <span class="text-[9px] uppercase font-bold text-gray-500">Total: {{allPlayers.length}}</span>
+                <div class="flex items-center gap-2">
+                    <button @click="markAllArrivedAndQueue" class="text-cyan-500 hover:text-cyan-400 text-[9px] flex items-center gap-1 font-bold" title="Enviar Todos que Chegaram para Fila">
+                        ✅ Todos Chegaram
+                    </button>
+                </div>
+            </div>
+
+            <div class="px-1.5 py-1 bg-gray-850 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+                <span class="text-[8px] uppercase font-bold text-gray-500">Jogador</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-[8px] uppercase font-bold text-cyan-500 w-6 text-center" :title="arrivedCount + ' chegaram'">✅ <span class="text-[7px] text-cyan-400">{{arrivedCount}}</span></span>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-1.5 bg-gray-900" @dragover.prevent @drop="onDropOnRegister($event)">
+                <ul class="space-y-1">
+                    <li v-for="(p, idx) in allPlayers" :key="p.id" 
+                        class="flex items-center justify-between bg-gray-800 p-1 rounded border border-gray-700 group hover:border-gray-600 transition draggable-item"
+                        draggable="true"
+                        @dragstart="onDragStartFromRegister($event, p)">
+                        <div class="flex items-center gap-1.5 overflow-hidden flex-1 min-w-0" @dblclick.stop="editingPlayerId !== p.id && startEditCadastro(p)">
+                            <span class="text-[9px] text-gray-500 font-mono w-3 text-right flex-shrink-0">{{ idx + 1 }}</span>
+                            <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-blue-500"></span>
+                            <input v-if="editingPlayerId === p.id" ref="editCadastroInputRef" v-model="editCadastroName" type="text"
+                                class="flex-1 min-w-0 bg-gray-950 border border-emerald-500 rounded px-1 py-0.5 text-[10px] font-medium text-gray-200 focus:ring-1 focus:ring-emerald-500 outline-none"
+                                :class="{'opacity-40': !p.arrived}"
+                                @keydown.enter="saveCadastroName(p)" @blur="saveCadastroName(p)" />
+                            <template v-else>
+                                <span class="text-[10px] font-medium truncate text-gray-300 flex-1 min-w-0" :class="{'opacity-40': !p.arrived}">{{ p.name }}</span>
+                            </template>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <div class="w-6 flex justify-center">
+                                <input type="checkbox" v-model="p.arrived" @change="onArrivedChange(p)" class="w-3 h-3 accent-cyan-500 cursor-pointer rounded-sm" title="Chegou">
+                            </div>
+                            <button type="button" @click.stop="removeFromCadastro(p)" class="p-0.5 rounded text-red-500 hover:text-red-400 hover:bg-red-900/30 transition opacity-70 hover:opacity-100" title="Remover do cadastro (não virá)">
+                                <i class="ph ph-x text-[10px]"></i>
+                            </button>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            
+        </section>
+
+        <section class="lg:col-span-7 flex flex-col gap-2 h-full min-h-0">
+            
+            <div class="bg-gray-900 rounded-lg border border-gray-800 shadow relative flex-shrink-0">
+                <div class="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-yellow-500 via-gray-500 to-blue-500 opacity-60"></div>
+                
+                <div class="p-2 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="flex flex-col items-center">
+                            <span class="text-[9px] font-bold text-yellow-400 uppercase">Time Amarelo</span>
+                            <div class="flex items-center gap-1 bg-black/30 rounded p-0.5 border border-yellow-600/30">
+                                <button @click="adjustScore('A', -1)" class="w-5 h-5 hover:bg-gray-700 rounded text-gray-400 flex items-center justify-center"><i class="ph ph-minus"></i></button>
+                                <span class="text-lg font-mono-nums font-bold w-6 text-center text-yellow-400">{{ match.scoreA }}</span>
+                                <button @click="adjustScore('A', 1)" class="w-5 h-5 hover:bg-yellow-900/50 rounded text-yellow-400 flex items-center justify-center"><i class="ph ph-plus"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col items-center">
+                        <div class="text-3xl font-mono-nums font-bold tracking-widest leading-none" :class="{'text-red-500 animate-pulse': match.timeLeft < 60 && match.timeLeft > 0, 'text-white': match.timeLeft >= 60}">
+                            {{ formattedTime }}
+                        </div>
+                        
+                        <!-- Controles principais -->
+                        <div class="flex gap-2 mt-1">
+                            <button @click="toggleTimer" class="px-3 py-0.5 rounded-full text-white text-[10px] font-bold uppercase tracking-wider shadow border border-white/10 transition hover:scale-105" :class="match.timerRunning ? 'bg-yellow-600' : 'bg-emerald-600'">
+                                {{ match.timerRunning ? 'Pausar' : (match.hasStarted ? 'Retomar' : 'Iniciar') }}
+                            </button>
+                            <button @click="resetarPartida" class="px-3 py-0.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold uppercase tracking-wider shadow border border-red-700/50 transition hover:scale-105">
+                                Reiniciar Tempo
+                            </button>
+                        </div>
+                        
+                        <!-- Controles de ajuste de tempo -->
+                        <div class="flex gap-1 mt-1.5">
+                            <button @click="setTimeZero" class="px-1.5 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-white text-[9px] font-bold border border-gray-600 transition" title="Zerar cronômetro">
+                                0s
+                            </button>
+                            <button @click="adjustTime(-60)" class="px-1.5 py-0.5 rounded bg-red-900/50 hover:bg-red-800/60 text-red-400 text-[9px] font-bold border border-red-700/50 transition" title="Remover 1 minuto">
+                                -1min
+                            </button>
+                            <button @click="adjustTime(-30)" class="px-1.5 py-0.5 rounded bg-red-900/30 hover:bg-red-800/40 text-red-400 text-[9px] font-bold border border-red-700/30 transition" title="Remover 30 segundos">
+                                -30s
+                            </button>
+                            <button @click="adjustTime(-10)" class="px-1.5 py-0.5 rounded bg-red-900/20 hover:bg-red-800/30 text-red-400 text-[9px] font-bold border border-red-700/20 transition" title="Remover 10 segundos">
+                                -10s
+                            </button>
+                            <button @click="adjustTime(10)" class="px-1.5 py-0.5 rounded bg-emerald-900/20 hover:bg-emerald-800/30 text-emerald-400 text-[9px] font-bold border border-emerald-700/20 transition" title="Adicionar 10 segundos">
+                                +10s
+                            </button>
+                            <button @click="adjustTime(30)" class="px-1.5 py-0.5 rounded bg-emerald-900/30 hover:bg-emerald-800/40 text-emerald-400 text-[9px] font-bold border border-emerald-700/30 transition" title="Adicionar 30 segundos">
+                                +30s
+                            </button>
+                            <button @click="adjustTime(60)" class="px-1.5 py-0.5 rounded bg-emerald-900/50 hover:bg-emerald-800/60 text-emerald-400 text-[9px] font-bold border border-emerald-700/50 transition" title="Adicionar 1 minuto">
+                                +1min
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2 mt-1.5">
+                            <button type="button" role="switch" :aria-checked="config.alertTimeEnabled" @click="config.alertTimeEnabled = !config.alertTimeEnabled; saveData()"
+                                class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+                                :class="config.alertTimeEnabled ? 'bg-amber-600' : 'bg-gray-600'"
+                                title="Ligar/desligar aviso quando faltar X min">
+                                <span class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200"
+                                    :class="config.alertTimeEnabled ? 'translate-x-4' : 'translate-x-0.5'"></span>
+                            </button>
+                            <span class="text-[9px] text-gray-500 font-bold whitespace-nowrap">Alerta quando faltar:</span>
+                            <button @click="ui.showAlertModal = true" class="flex items-center gap-1.5 bg-black/30 rounded p-0.5 border transition" :class="config.alertTimeEnabled ? 'border-amber-600/30 hover:border-amber-500/50' : 'border-gray-600 opacity-60'">
+                                <span class="text-[10px] font-bold tabular-nums" :class="config.alertTimeEnabled ? 'text-amber-400' : 'text-gray-500'">{{ config.alertMinutesLeft }} min</span>
+                                <span v-if="config.alertSecondsLeft > 0" class="text-[10px] font-bold tabular-nums" :class="config.alertTimeEnabled ? 'text-amber-400' : 'text-gray-500'">{{ config.alertSecondsLeft }} s</span>
+                                <i class="ph ph-pencil-simple text-[10px]" :class="config.alertTimeEnabled ? 'text-amber-500' : 'text-gray-500'"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                         <div class="flex flex-col items-center">
+                            <span class="text-[9px] font-bold text-blue-400 uppercase">Time Azul</span>
+                            <div class="flex items-center gap-1 bg-black/30 rounded p-0.5 border border-blue-600/30">
+                                <button @click="adjustScore('B', -1)" class="w-5 h-5 hover:bg-gray-700 rounded text-gray-400 flex items-center justify-center"><i class="ph ph-minus"></i></button>
+                                <span class="text-lg font-mono-nums font-bold w-6 text-center text-blue-400">{{ match.scoreB }}</span>
+                                <button @click="adjustScore('B', 1)" class="w-5 h-5 hover:bg-blue-900/50 rounded text-blue-400 flex items-center justify-center"><i class="ph ph-plus"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 flex-1 min-h-0">
+                <div class="bg-yellow-950/30 border border-yellow-500/30 rounded-lg flex flex-col shadow-inner overflow-hidden" 
+                     @dragover.prevent @drop="onDrop($event, 'teamA')">
+                    <div class="bg-yellow-900/30 p-1 border-b border-yellow-500/20 text-center flex-shrink-0 flex items-center justify-center gap-1.5">
+                        <i v-if="match.lastWinner === 'A'" class="ph ph-crown text-yellow-300 text-sm" title="Vencedor da última partida"></i>
+                        <span class="text-[9px] font-bold text-yellow-400 uppercase tracking-widest">TIME AMARELO</span>
+                        <i v-if="match.lastWinner === 'A'" class="ph ph-crown text-yellow-300 text-sm" title="Vencedor da última partida"></i>
+                    </div>
+                    <div class="p-1.5 flex-1 overflow-y-auto space-y-1">
+                        <player-card
+                            v-for="p in match.teamA"
+                            :key="p.id"
+                            :player="p"
+                            team="A"
+                            :show-move-to-queue="true"
+                            @dragstart="onDragStart($event, p, 'teamA')"
+                            @move-to-queue="movePlayerToQueue"
+                            @drop-on-card="onDropOnTeamCard($event, 'teamA')"
+                            @goal-click="addGoalToPlayer"
+                            @update-name="saveData"
+                        ></player-card>
+                        <div v-if="match.teamA.length === 0" class="h-full flex items-center justify-center opacity-20 text-[10px] italic border-2 border-dashed border-gray-700 m-2 rounded">
+                            Arrastar Jogadores
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-950/30 border border-blue-500/30 rounded-lg flex flex-col shadow-inner overflow-hidden"
+                     @dragover.prevent @drop="onDrop($event, 'teamB')">
+                    <div class="bg-blue-900/30 p-1 border-b border-blue-500/20 text-center flex-shrink-0 flex items-center justify-center gap-1.5">
+                        <i v-if="match.lastWinner === 'B'" class="ph ph-crown text-blue-300 text-sm" title="Vencedor da última partida"></i>
+                        <span class="text-[9px] font-bold text-blue-400 uppercase tracking-widest">TIME AZUL</span>
+                        <i v-if="match.lastWinner === 'B'" class="ph ph-crown text-blue-300 text-sm" title="Vencedor da última partida"></i>
+                    </div>
+                    <div class="p-1.5 flex-1 overflow-y-auto space-y-1">
+                        <player-card
+                            v-for="p in match.teamB"
+                            :key="p.id"
+                            :player="p"
+                            team="B"
+                            :show-move-to-queue="true"
+                            @dragstart="onDragStart($event, p, 'teamB')"
+                            @move-to-queue="movePlayerToQueue"
+                            @drop-on-card="onDropOnTeamCard($event, 'teamB')"
+                            @goal-click="addGoalToPlayer"
+                            @update-name="saveData"
+                        ></player-card>
+                        <div v-if="match.teamB.length === 0" class="h-full flex items-center justify-center opacity-20 text-[10px] italic border-2 border-dashed border-gray-700 m-2 rounded">
+                            Arrastar Jogadores
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-900 p-2 rounded-lg border border-gray-800 flex-shrink-0">
+                <div class="flex gap-2">
+                    <button @click="generateInitialTeams" :disabled="status.teamsGenerated" class="flex-1 bg-purple-700 hover:bg-purple-600 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold py-2 rounded shadow flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-wide transition transform active:scale-[0.99]">
+                        <i class="ph ph-shuffle text-sm"></i> Sortear Times
+                    </button>
+                    <button @click="clearTeams" class="flex-1 bg-red-700 hover:bg-red-600 text-white font-bold py-2 rounded shadow flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-wide transition transform active:scale-[0.99]">
+                        <i class="ph ph-trash text-sm"></i> Limpar Tábua
+                    </button>
+                    <button @click="nextMatch" class="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-2 rounded shadow flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-wide transition transform active:scale-[0.99]">
+                        <i class="ph ph-caret-right text-sm"></i> Próximo
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <section class="lg:col-span-3 flex flex-col gap-2 h-full min-h-0 overflow-hidden">
+            
+            <div class="bg-gray-900 rounded-lg border border-gray-800 flex flex-col overflow-hidden flex-1 min-h-0">
+                <div class="p-1.5 bg-gray-800 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+                    <h3 class="text-[10px] font-bold text-yellow-500 uppercase tracking-wider flex items-center gap-1">
+                        Fila de Espera (Próximos)
+                        <button type="button" @click="numberQueueNames" class="p-0.5 rounded hover:bg-yellow-900/30 text-yellow-500 hover:text-yellow-400 transition" title="Numerar jogadores na ordem da fila (#1 Nome, #2 Nome, ...)">
+                            <span class="text-sm leading-none">#️⃣</span>
+                        </button>
+                    </h3>
+                    <span class="bg-gray-950 text-[9px] px-1.5 rounded text-gray-400 border border-gray-700">{{ queue.length }}</span>
+                </div>
+                <div class="flex-1 p-1.5 overflow-y-auto bg-black/20" @dragover.prevent @drop="onDrop($event, 'queue')">
+                    <div class="space-y-0.5">
+                        <template v-for="(p, index) in queue" :key="p.id">
+                            <player-card 
+                                :player="p" 
+                                :mini="true" 
+                                :show-remove="true"
+                                :show-reorder="true"
+                                :show-move-to-teams="true"
+                                :is-first="index === 0"
+                                :is-last="index === queue.length - 1"
+                                @dragstart="onDragStart($event, p, 'queue')"
+                                @drop-on-card="onDropOnQueueCard"
+                                @remove-click="removeFromQueue"
+                                @move-up="movePlayerUp"
+                                @move-down="movePlayerDown"
+                                @move-to-team="movePlayerToTeam"
+                                @goal-click="addGoalToPlayer"
+                                @update-name="saveData"
+                            ></player-card>
+                            <div v-if="(index + 1) % 4 === 0 && index < queue.length - 1" class="py-1 my-0.5 border-t border-dashed border-yellow-600/50"></div>
+                        </template>
+                        <div v-if="queue.length === 0" class="text-center text-gray-600 text-[10px] py-10 italic">
+                            Ninguém na espera
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </div>
+
+</div>
+
+<script type="text/x-template" id="player-card-template">
+    <div 
+        class="draggable-item rounded flex justify-between items-center shadow-sm border-l-[3px] select-none transition group relative"
+        :class="[
+            team === 'A' ? 'bg-yellow-500/20 hover:bg-yellow-500/30 border-yellow-600' : team === 'B' ? 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-600' : 'bg-gray-800 hover:bg-gray-700 border-blue-600',
+            mini ? 'p-1 h-6' : 'p-1.5 mb-1',
+            isDragOver ? 'drag-over-item' : ''
+        ]"
+        draggable="true"
+        @dragover.prevent="onDragOver"
+        @dragleave="isDragOver = false"
+        @drop.stop="onDrop"
+    >
+        <div class="flex items-center gap-1.5 overflow-hidden w-full" @dblclick.stop="!editing && startEdit()">
+            <span v-if="index" class="text-[9px] font-mono bg-gray-900 w-3.5 h-3.5 flex items-center justify-center rounded text-gray-400 flex-shrink-0 leading-none">{{ index }}</span>
+            <!-- Card: partidas jogadas (antes do nome) -->
+            <span class="flex-shrink-0 inline-flex items-center justify-center gap-1 w-[39px] h-[23px] rounded-md bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 font-bold leading-none" :class="mini ? 'text-[8px]' : 'text-[9px]'" :title="(player.matchesPlayed || 0) + ' partida(s)'">
+                <span :class="mini ? 'text-[10px]' : 'text-xs'">🙋‍♂️</span>
+                <span>{{ player.matchesPlayed || 0 }}</span>
+            </span>
+            <!-- Card: gols (clicável para +1 gol, antes do nome) -->
+            <span @click.stop="$emit('goal-click', player.id)" class="flex-shrink-0 inline-flex items-center justify-center gap-1 w-[39px] h-[23px] rounded-md bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 font-bold leading-none cursor-pointer hover:bg-emerald-900/50 transition select-none" :class="mini ? 'text-[8px]' : 'text-[9px]'" :title="(player.goals || 0) + ' gol(s) — Clique para adicionar gol'">
+                <i class="ph ph-soccer-ball" :class="mini ? 'text-[8px]' : 'text-[9px]'"></i>
+                <span>{{ player.goals || 0 }}</span>
+            </span>
+            <div class="flex flex-col truncate w-full justify-center flex-1 min-w-0">
+                <div class="flex items-center gap-1 min-w-0">
+                    <input v-if="editing" ref="editInput" v-model="editName" type="text"
+                        class="flex-1 min-w-0 bg-gray-950 border border-emerald-500 rounded px-1 py-0.5 text-[10px] font-bold text-gray-200 focus:ring-1 focus:ring-emerald-500 outline-none"
+                        :class="mini ? 'text-[9px]' : 'text-[11px]'"
+                        @keydown.enter="saveName" @blur="saveName" />
+                    <span v-else class="font-bold text-gray-300 truncate leading-none flex-1 min-w-0" :class="mini ? 'text-[9px]' : 'text-[11px]'">{{ player.name }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-0.5 ml-2">
+            <!-- Botão seta vermelha para mover do time para fila (aparece no hover quando está nos times) -->
+            <button v-if="showMoveToQueue" @click.stop="$emit('move-to-queue', player.id)" class="opacity-0 group-hover:opacity-100 bg-red-600 hover:bg-red-700 text-white p-0.5 rounded transition flex-shrink-0" title="Mover para fila de espera">
+                <i class="ph ph-arrow-right text-[10px]"></i>
+            </button>
+            
+            <!-- Botões azul/amarelo para mover da fila para times (aparecem no hover quando está na fila) -->
+            <button v-if="showMoveToTeams" @click.stop="$emit('move-to-team', player.id, 'A')" class="opacity-0 group-hover:opacity-100 bg-yellow-600 hover:bg-yellow-700 text-white p-0.5 rounded transition flex-shrink-0" title="Mover para Time Amarelo">
+                <i class="ph ph-circle text-[8px]"></i>
+            </button>
+            <button v-if="showMoveToTeams" @click.stop="$emit('move-to-team', player.id, 'B')" class="opacity-0 group-hover:opacity-100 bg-blue-600 hover:bg-blue-700 text-white p-0.5 rounded transition flex-shrink-0" title="Mover para Time Azul">
+                <i class="ph ph-circle text-[8px]"></i>
+            </button>
+            
+            <!-- Setas de reordenação (aparecem no hover) -->
+            <button v-if="showReorder && !isFirst" @click.stop="$emit('move-up', player.id)" class="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-300 p-0.5 rounded hover:bg-gray-900 transition" title="Mover para cima">
+                <i class="ph ph-caret-up text-[10px]"></i>
+            </button>
+            <button v-if="showReorder && !isLast" @click.stop="$emit('move-down', player.id)" class="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-300 p-0.5 rounded hover:bg-gray-900 transition" title="Mover para baixo">
+                <i class="ph ph-caret-down text-[10px]"></i>
+            </button>
+            
+            <i v-if="!mini" class="ph ph-dots-six-vertical text-gray-600 text-[10px] group-hover:text-gray-400 ml-1"></i>
+            <button v-if="showRemove" @click.stop="$emit('remove-click', player.id)" class="ml-1 text-red-500 hover:text-red-300 p-0.5 rounded hover:bg-gray-900 transition" title="Remover">
+                <i class="ph ph-x text-[9px]"></i>
+            </button>
+        </div>
+    </div>
+</script>
+
+<script>
+    const { createApp, reactive, ref, computed, onMounted, onUnmounted, nextTick } = Vue;
+
+    const app = createApp({
+        setup() {
+            // --- ESTADO ---
+            const config = reactive({
+                playersPerTeam: 5, 
+                timeFirstMatch: 10, 
+                timeNormalMatch: 7,
+                alertMinutesLeft: 2,
+                alertSecondsLeft: 0,
+                alertTimeEnabled: true
+            });
+
+            const status = reactive({
+                isFirstMatch: true,
+                teamsGenerated: false,
+                lastUpdate: Date.now()
+            });
+
+            const ui = reactive({ showRegister: true, showGoalConfetti: false, showAlertModal: false, showTimeWarning: false, timeWarningMessage: '', timeWarningEnded: false });
+            const input = reactive({ lines: '' });
+            const editingPlayerId = ref(null);
+            const editCadastroName = ref('');
+            const editCadastroInputRef = ref(null);
+            
+            const allPlayers = ref([]); 
+            const match = reactive({ teamA: [], teamB: [], scoreA: 0, scoreB: 0, timeLeft: 600, timerRunning: false, hasStarted: false, lastWinner: null });
+            const queue = ref([]);
+
+            let timerInterval = null;
+            let draggedItem = null;
+            let sourceList = null;
+            let confettiTimeout = null;
+            const alertTimeWarningShown = ref(false);
+
+            // Aviso sonoro: Web Audio API nativa (sem biblioteca). Volume 0.85, 3 beeps 880Hz.
+            // Opções: subir volume (0.85), trocar frequência (ex: 1000), ou usar arquivo MP3/WAV para alarme real.
+            const playAlertBeep = () => {
+                try {
+                    const Ctx = window.AudioContext || window.webkitAudioContext;
+                    if (!Ctx) return;
+                    const ctx = new Ctx();
+                    if (ctx.state === 'suspended') ctx.resume();
+                    const playBeep = (delay) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.frequency.value = 1200;
+                        osc.type = 'sawtooth';
+                        gain.gain.setValueAtTime(1.0, ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                        osc.start(ctx.currentTime + delay);
+                        osc.stop(ctx.currentTime + delay + 0.2);
+                    };
+                    [0, 0.25, 0.5].forEach(playBeep);
+                } catch (_) {}
+            };
+
+            // --- COMPUTEDS ---
+            const formattedTime = computed(() => {
+                const m = Math.floor(match.timeLeft / 60).toString().padStart(2, '0');
+                const s = (match.timeLeft % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            });
+
+            const arrivedCount = computed(() => allPlayers.value.filter(p => p.arrived).length);
+
+            // --- PERSISTÊNCIA ---
+            const saveData = () => {
+                const data = {
+                    config, status, allPlayers: allPlayers.value, 
+                    match, queue: queue.value,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('futebolAppData', JSON.stringify(data));
+            };
+
+            const loadData = () => {
+                const saved = localStorage.getItem('futebolAppData');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
+                        Object.assign(config, data.config);
+                        Object.assign(status, data.status);
+                        Object.assign(match, data.match);
+                        
+                        // Garantir que todos os jogadores tenham matchesPlayed e arrived (matchesWon desativado)
+                        const ensurePlayerProps = (players) => {
+                            return players.map(p => ({ ...p, matchesPlayed: p.matchesPlayed || 0, arrived: p.arrived || false, goals: p.goals || 0 }));
+                        };
+                        const ensureMatchesPlayed = ensurePlayerProps;
+                        
+                        allPlayers.value = ensureMatchesPlayed(data.allPlayers || []);
+                        match.teamA = ensureMatchesPlayed(match.teamA || []);
+                        match.teamB = ensureMatchesPlayed(match.teamB || []);
+                        
+                        // Migrar dados antigos: mover nextTeams para queue
+                        let migratedQueue = data.queue || [];
+                        if (data.nextTeams) {
+                            if (data.nextTeams.team1) migratedQueue = [...data.nextTeams.team1, ...migratedQueue];
+                            if (data.nextTeams.team2) migratedQueue = [...data.nextTeams.team2, ...migratedQueue];
+                        }
+                        queue.value = ensureMatchesPlayed([...(migratedQueue || []), ...(data.goalkeeperQueue || [])]);
+                        match.timerRunning = false;
+                    } else {
+                        localStorage.removeItem('futebolAppData');
+                    }
+                }
+            };
+
+            // --- AÇÕES ---
+            const resetAll = () => {
+                if(confirm("Limpar todos os dados?")){
+                    localStorage.removeItem('futebolAppData');
+                    location.reload();
+                }
+            };
+
+            // --- RESETAR PARTIDA (encerra pelo placar, marca vencedor/coroa, zera cronômetro) ---
+            const resetarPartida = () => {
+                if (!confirm("Encerrar partida e marcar vencedor pelo placar atual? O cronômetro será zerado.")) return;
+                // Contar uma partida para cada jogador dos dois times
+                match.teamA.forEach(p => { p.matchesPlayed = (p.matchesPlayed || 0) + 1; });
+                match.teamB.forEach(p => { p.matchesPlayed = (p.matchesPlayed || 0) + 1; });
+                // Marcar qual time ganhou pelo placar (coroa ao lado do time) [incrementar matchesWon desativado]
+                if (match.scoreA > match.scoreB) {
+                    match.lastWinner = 'A';
+                    // match.teamA.forEach(p => { p.matchesWon = (p.matchesWon || 0) + 1; });
+                } else if (match.scoreB > match.scoreA) {
+                    match.lastWinner = 'B';
+                    // match.teamB.forEach(p => { p.matchesWon = (p.matchesWon || 0) + 1; });
+                } else {
+                    match.lastWinner = null; // Empate: ao clicar em Próximo, os dois times saem
+                }
+                resetTimer(false);
+                saveData();
+            };
+
+            const addPlayers = () => {
+                const process = (text, role) => {
+                    if(!text) return;
+                    text.split('\n').forEach(line => {
+                        const name = line.trim();
+                        if(name) {
+                            allPlayers.value.push({
+                                id: Date.now() + Math.random(),
+                                name, role, arrived: false, matchesPlayed: 0, goals: 0
+                            });
+                        }
+                    });
+                };
+                process(input.lines, 'LINE');
+                input.lines = '';
+                saveData();
+            };
+
+            const markAllArrivedAndQueue = () => {
+                if(confirm("Marcar TODOS como 'Chegaram' e enviar para a fila de espera?")) {
+                    // Marca todos como "chegou"
+                    allPlayers.value.forEach(p => {
+                        p.arrived = true;
+                    });
+                    
+                    // Envia todos para a fila
+                    allPlayers.value.forEach(p => {
+                        if (!queue.value.find(q => q.id === p.id)) {
+                            queue.value.push({ ...p });
+                        }
+                    });
+                    
+                    // Remove todos do cadastro (todos foram para a fila)
+                    allPlayers.value = [];
+                    saveData();
+                }
+            };
+
+            const onArrivedChange = (player) => {
+                if (player.arrived) {
+                        if (!queue.value.find(q => q.id === player.id)) {
+                            queue.value.push({ ...player });
+                        }
+                    // Remove do cadastro
+                    allPlayers.value = allPlayers.value.filter(p => p.id !== player.id);
+                }
+                saveData();
+            };
+
+            const startEditCadastro = (p) => {
+                editingPlayerId.value = p.id;
+                editCadastroName.value = p.name || '';
+                nextTick(() => {
+                    const el = editCadastroInputRef.value;
+                    const input = Array.isArray(el) ? el.find(Boolean) : el;
+                    input?.focus();
+                });
+            };
+            const saveCadastroName = (p) => {
+                const n = (editCadastroName.value || '').trim();
+                if (n) p.name = n;
+                editingPlayerId.value = null;
+                saveData();
+            };
+
+            const removeFromCadastro = (player) => {
+                if (!confirm('Remover "' + (player.name || 'Jogador') + '" do cadastro? Ele não virá. Esta ação não pode ser desfeita.')) return;
+                const id = player.id;
+                allPlayers.value = allPlayers.value.filter(p => p.id !== id);
+                queue.value = queue.value.filter(p => p.id !== id);
+                match.teamA = match.teamA.filter(p => p.id !== id);
+                match.teamB = match.teamB.filter(p => p.id !== id);
+                if (editingPlayerId.value === id) editingPlayerId.value = null;
+                saveData();
+            };
+
+            const onDragStartFromRegister = (evt, player) => {
+                draggedItem = player;
+                sourceList = 'register';
+                evt.dataTransfer.effectAllowed = 'move';
+            };
+
+            const onDropOnRegister = (evt) => {
+                // Não faz nada ao soltar no cadastro (área apenas de origem)
+                draggedItem = null;
+                sourceList = null;
+            };
+
+            const removeFromQueue = (id) => {
+                if(confirm("Remover este jogador da fila de espera?")) {
+                    queue.value = queue.value.filter(p => p.id !== id);
+                    saveData();
+                }
+            };
+
+            // Adicionar 1 gol ao jogador (atualiza em cadastro, fila e times para manter sincronizado)
+            const addGoalToPlayer = (playerId) => {
+                const addOne = (p) => { if (p.id === playerId) p.goals = (p.goals || 0) + 1; };
+                allPlayers.value.forEach(addOne);
+                queue.value.forEach(addOne);
+                match.teamA.forEach(addOne);
+                match.teamB.forEach(addOne);
+                // Mesma animação de gol dos times (bola + fade)
+                if (confettiTimeout) clearTimeout(confettiTimeout);
+                ui.showGoalConfetti = true;
+                confettiTimeout = setTimeout(() => {
+                    ui.showGoalConfetti = false;
+                    confettiTimeout = null;
+                }, 800);
+                saveData();
+            };
+
+            const numberQueueNames = () => {
+                queue.value.forEach((p, i) => {
+                    const base = (p.name || '').replace(/\s*[-#]\s*\d+\s*$/, '').replace(/^#\s*\d+\s*-\s*/, '').trim() || 'Jogador';
+                    p.name = '#' + (i + 1) + ' - ' + base;
+                });
+                saveData();
+            };
+
+            const movePlayerUp = (id) => {
+                const index = queue.value.findIndex(p => p.id === id);
+                if (index > 0) {
+                    // Troca com o jogador acima
+                    [queue.value[index - 1], queue.value[index]] = [queue.value[index], queue.value[index - 1]];
+                    saveData();
+                }
+            };
+
+            const movePlayerDown = (id) => {
+                const index = queue.value.findIndex(p => p.id === id);
+                if (index < queue.value.length - 1) {
+                    // Troca com o jogador abaixo
+                    [queue.value[index], queue.value[index + 1]] = [queue.value[index + 1], queue.value[index]];
+                    saveData();
+                }
+            };
+
+            // Função para selecionar N elementos aleatórios de um array (sem modificar o original)
+            const selectRandom = (arr, count) => {
+                const indices = [];
+                const selected = [];
+                const available = [...arr];
+                
+                while (selected.length < count && available.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * available.length);
+                    selected.push(available.splice(randomIndex, 1)[0]);
+                }
+                
+                return selected;
+            };
+
+            // SORTEAR TIMES (a partir da fila de espera)
+            // Pega os 8 primeiros jogadores da fila e sorteia 4 para cada time
+            const generateInitialTeams = () => {
+                if (queue.value.length < 8) {
+                    alert("Precisa de pelo menos 8 jogadores na fila de espera para sortear os times.");
+                    return;
+                }
+
+                match.teamA = [];
+                match.teamB = [];
+
+                const sortearEntreTimesComLimite = (jogadores, limiteA, limiteB) => {
+                    const paraTimeA = [];
+                    const paraTimeB = [];
+                    for (const jogador of jogadores) {
+                        if (paraTimeA.length < limiteA && paraTimeB.length < limiteB) {
+                            if (Math.random() < 0.5) paraTimeA.push(jogador);
+                            else paraTimeB.push(jogador);
+                        } else if (paraTimeA.length < limiteA) paraTimeA.push(jogador);
+                        else if (paraTimeB.length < limiteB) paraTimeB.push(jogador);
+                    }
+                    return { paraTimeA, paraTimeB };
+                };
+
+                const jogadoresSelecionados = queue.value.slice(0, 8);
+                const resultado = sortearEntreTimesComLimite(jogadoresSelecionados, 4, 4);
+                match.teamA.push(...resultado.paraTimeA);
+                match.teamB.push(...resultado.paraTimeB);
+                queue.value = queue.value.slice(8);
+
+                status.teamsGenerated = true;
+                resetTimer(true);
+                ui.showRegister = false;
+                saveData();
+            };
+
+            // Timer
+            const toggleTimer = () => {
+                match.timerRunning = !match.timerRunning;
+                if (match.timerRunning) {
+                    match.hasStarted = true;
+                    timerInterval = setInterval(() => {
+                        if (match.timeLeft > 0) {
+                            match.timeLeft--;
+                            const thresholdSeconds = config.alertMinutesLeft * 60 + config.alertSecondsLeft;
+                            if (config.alertTimeEnabled && thresholdSeconds > 0 && match.timeLeft <= thresholdSeconds && match.timeLeft > 0 && !alertTimeWarningShown.value) {
+                                alertTimeWarningShown.value = true;
+                                const msg = config.alertSecondsLeft > 0
+                                    ? "Faltam " + config.alertMinutesLeft + " minuto(s) e " + config.alertSecondsLeft + " segundo(s) para o fim da partida!"
+                                    : "Faltam " + config.alertMinutesLeft + " minuto(s) para o fim da partida!";
+                                ui.timeWarningMessage = msg;
+                                ui.timeWarningEnded = false;
+                                ui.showTimeWarning = true;
+                                playAlertBeep();
+                            }
+                            saveData(); 
+                        } else {
+                            match.timerRunning = false;
+                            clearInterval(timerInterval);
+                            // Incrementar contador de partidas para jogadores em campo
+                            match.teamA.forEach(p => {
+                                p.matchesPlayed = (p.matchesPlayed || 0) + 1;
+                            });
+                            match.teamB.forEach(p => {
+                                p.matchesPlayed = (p.matchesPlayed || 0) + 1;
+                            });
+                            // Determinar vencedor da partida [incrementar matchesWon desativado]
+                            if (match.scoreA > match.scoreB) {
+                                match.lastWinner = 'A';
+                                // match.teamA.forEach(p => { p.matchesWon = (p.matchesWon || 0) + 1; });
+                            } else if (match.scoreB > match.scoreA) {
+                                match.lastWinner = 'B';
+                                // match.teamB.forEach(p => { p.matchesWon = (p.matchesWon || 0) + 1; });
+                            } else {
+                                match.lastWinner = null; // Empate
+                            }
+                            if (ui.showTimeWarning) {
+                                ui.timeWarningMessage = "A partida acabou!";
+                                ui.timeWarningEnded = true;
+                            }
+                            saveData();
+                        }
+                    }, 1000);
+                } else {
+                    clearInterval(timerInterval);
+                    saveData();
+                }
+            };
+
+            const resetTimer = (isFirst) => {
+                clearInterval(timerInterval);
+                match.timerRunning = false;
+                match.hasStarted = false;
+                alertTimeWarningShown.value = false;
+                status.isFirstMatch = isFirst;
+                match.timeLeft = (isFirst ? config.timeFirstMatch : config.timeNormalMatch) * 60;
+                match.scoreA = 0;
+                match.scoreB = 0;
+                saveData();
+            };
+
+            const adjustTime = (seconds) => {
+                match.timeLeft = Math.max(0, match.timeLeft + seconds);
+                saveData();
+            };
+
+            const setTimeZero = () => {
+                match.timeLeft = 0;
+                saveData();
+            };
+
+            const adjustScore = (team, delta) => {
+                if (team === 'A') match.scoreA = Math.max(0, match.scoreA + delta);
+                else match.scoreB = Math.max(0, match.scoreB + delta);
+
+                // Animação rápida de confete quando aumenta o placar (gol)
+                if (delta > 0) {
+                    if (confettiTimeout) clearTimeout(confettiTimeout);
+                    ui.showGoalConfetti = true;
+                    confettiTimeout = setTimeout(() => {
+                        ui.showGoalConfetti = false;
+                        confettiTimeout = null;
+                    }, 800); // dura menos de 1 segundo
+                }
+
+                saveData();
+            };
+
+            // --- ENCERRAR PARTIDA (apenas zera o cronômetro) ---
+            const endMatch = () => {
+                if(!confirm("Encerrar partida e zerar o cronômetro?")) return;
+                resetTimer(false);
+                saveData();
+            };
+
+            // --- PRÓXIMO (rotação baseada no time vencedor = quem tem a coroa) ---
+            const nextMatch = () => {
+                const winner = match.lastWinner; // 'A' | 'B' | null (empate)
+
+                // Substituir time perdedor: 4 atuais vão para o final da fila, 4 primeiros da fila entram
+                const replaceLosingTeam = (team) => {
+                    team.forEach(p => queue.value.push(p));
+                    return queue.value.splice(0, 4);
+                };
+
+                if (winner === 'A') {
+                    match.teamB = replaceLosingTeam(match.teamB);
+                } else if (winner === 'B') {
+                    match.teamA = replaceLosingTeam(match.teamA);
+                } else {
+                    // Empate: ambos os times saem; 8 primeiros da fila entram (4 no A, 4 no B)
+                    match.teamA.forEach(p => queue.value.push(p));
+                    match.teamB.forEach(p => queue.value.push(p));
+                    match.teamA = queue.value.splice(0, 4);
+                    match.teamB = queue.value.splice(0, 4);
+                }
+
+                resetTimer(false);
+                match.lastWinner = null;
+                saveData();
+            };
+
+            // --- ROTACIONAR (pega próximos 8 da fila, 4 por time) ---
+            const rotateTeams = () => {
+                if(!confirm("Rotacionar times? Os próximos jogadores da fila entrarão em campo.")) return;
+
+                match.teamA.forEach(p => queue.value.push(p));
+                match.teamB.forEach(p => queue.value.push(p));
+                match.teamA = queue.value.splice(0, 4);
+                match.teamB = queue.value.splice(0, 4);
+
+                resetTimer(false);
+                saveData();
+            };
+
+            // --- LIMPAR TÁBUA (remove todos os jogadores dos times) ---
+            const clearTeams = () => {
+                if(!confirm("Limpar tábua? Todos os jogadores serão removidos dos times.")) return;
+
+                match.teamA.forEach(p => queue.value.push(p));
+                match.teamB.forEach(p => queue.value.push(p));
+                match.teamA = [];
+                match.teamB = [];
+
+                saveData();
+            };
+
+            // --- SORTEAR TIMES (aleatório) ---
+            const shuffleTeams = () => {
+                if(!confirm("Sortear times? Os times serão formados aleatoriamente.")) return;
+
+                match.teamA.forEach(p => queue.value.push(p));
+                match.teamB.forEach(p => queue.value.push(p));
+                match.teamA = [];
+                match.teamB = [];
+
+                const shuffle = (arr) => {
+                    const shuffled = [...arr];
+                    for (let i = shuffled.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                    }
+                    return shuffled;
+                };
+
+                const shuffled = shuffle(queue.value);
+                queue.value = shuffled;
+                match.teamA = queue.value.splice(0, 4);
+                match.teamB = queue.value.splice(0, 4);
+
+                resetTimer(true);
+                saveData();
+            };
+
+            // --- MOVER JOGADOR DO TIME PARA FILA (seta vermelha) ---
+            const movePlayerToQueue = (playerId) => {
+                // Encontrar o jogador no time A ou B
+                let player = match.teamA.find(p => p.id === playerId) || match.teamB.find(p => p.id === playerId);
+                if (!player) return;
+                
+                // Remover do time
+                match.teamA = match.teamA.filter(p => p.id !== playerId);
+                match.teamB = match.teamB.filter(p => p.id !== playerId);
+                
+                queue.value.push({ ...player });
+                
+                saveData();
+            };
+
+            // --- MOVER JOGADOR DA FILA PARA TIME (botões azul/amarelo) ---
+            const movePlayerToTeam = (playerId, team) => {
+                let player = queue.value.find(p => p.id === playerId);
+                if (!player) return;
+                
+                queue.value = queue.value.filter(p => p.id !== playerId);
+                
+                // Adicionar ao time apropriado
+                if (team === 'A') {
+                    match.teamA.push({ ...player });
+                } else {
+                    match.teamB.push({ ...player });
+                }
+                
+                saveData();
+            };
+
+            // Drag & Drop
+            const onDragStart = (evt, player, listName) => {
+                draggedItem = player;
+                sourceList = listName;
+                evt.dataTransfer.effectAllowed = 'move';
+            };
+
+            const onDrop = (evt, targetList) => {
+                if (!draggedItem || sourceList === targetList) return;
+
+                // Se vem do cadastro (register), exibe avisos e adiciona à fila
+                if (sourceList === 'register') {
+                    if (targetList === 'queue') {
+                        let warnings = [];
+                        if (!draggedItem.arrived) {
+                            warnings.push("⚠️ Este jogador ainda NÃO CHEGOU!");
+                        }
+                        if (warnings.length > 0) {
+                            alert(warnings.join("\n"));
+                        }
+                        // Adiciona à fila mesmo assim
+                        if (!queue.value.find(q => q.id === draggedItem.id)) {
+                            queue.value.push({ ...draggedItem });
+                        }
+                        // Remove do cadastro
+                        allPlayers.value = allPlayers.value.filter(p => p.id !== draggedItem.id);
+                    }
+                    draggedItem = null;
+                    sourceList = null;
+                    saveData();
+                    return;
+                }
+
+                const removeFromList = (listName) => {
+                    if (listName === 'teamA') match.teamA = match.teamA.filter(p => p.id !== draggedItem.id);
+                    else if (listName === 'teamB') match.teamB = match.teamB.filter(p => p.id !== draggedItem.id);
+                    else if (listName === 'queue') queue.value = queue.value.filter(p => p.id !== draggedItem.id);
+                };
+                removeFromList(sourceList);
+
+                if (targetList === 'queue') queue.value.push(draggedItem); 
+                else if (targetList === 'teamA') match.teamA.push(draggedItem);
+                else if (targetList === 'teamB') match.teamB.push(draggedItem);
+
+                draggedItem = null;
+                saveData();
+            };
+
+            // Reordenar / inserir jogadores diretamente dentro dos times ao soltar sobre um card
+            const onDropOnTeamCard = (targetPlayerId, targetTeam) => {
+                if (!draggedItem) return;
+
+                const targetArray = targetTeam === 'teamA' ? match.teamA : match.teamB;
+
+                if (sourceList === targetTeam) {
+                    // Reordenação dentro do mesmo time
+                    const fromIndex = targetArray.findIndex(p => p.id === draggedItem.id);
+                    const toIndex = targetArray.findIndex(p => p.id === targetPlayerId);
+
+                    if (fromIndex > -1 && toIndex > -1) {
+                        const [movedPlayer] = targetArray.splice(fromIndex, 1);
+                        targetArray.splice(toIndex, 0, movedPlayer);
+                    }
+                } else {
+                    // Remover da lista de origem
+                    if (sourceList === 'teamA') match.teamA = match.teamA.filter(p => p.id !== draggedItem.id);
+                    else if (sourceList === 'teamB') match.teamB = match.teamB.filter(p => p.id !== draggedItem.id);
+                    else if (sourceList === 'queue') queue.value = queue.value.filter(p => p.id !== draggedItem.id);
+
+                    // Inserir no time alvo na posição do card alvo
+                    const toIndex = targetArray.findIndex(p => p.id === targetPlayerId);
+                    if (toIndex > -1) {
+                        targetArray.splice(toIndex, 0, draggedItem);
+                    } else {
+                        targetArray.push(draggedItem);
+                    }
+                }
+
+                draggedItem = null;
+                sourceList = null;
+                saveData();
+            };
+
+            const onDropOnQueueCard = (targetPlayerId) => {
+                if (!draggedItem) return;
+                
+                if (sourceList === 'queue') {
+                    const fromIndex = queue.value.findIndex(p => p.id === draggedItem.id);
+                    const toIndex = queue.value.findIndex(p => p.id === targetPlayerId);
+                    
+                    if (fromIndex > -1 && toIndex > -1) {
+                        const [movedPlayer] = queue.value.splice(fromIndex, 1);
+                        queue.value.splice(toIndex, 0, movedPlayer);
+                    }
+                } else {
+                    if (sourceList === 'teamA') match.teamA = match.teamA.filter(p => p.id !== draggedItem.id);
+                    else if (sourceList === 'teamB') match.teamB = match.teamB.filter(p => p.id !== draggedItem.id);
+                    
+                    const toIndex = queue.value.findIndex(p => p.id === targetPlayerId);
+                    if(toIndex > -1) {
+                        queue.value.splice(toIndex, 0, draggedItem);
+                    } else {
+                        queue.value.push(draggedItem);
+                    }
+                }
+                
+                draggedItem = null;
+                sourceList = null;
+                saveData();
+            };
+
+            const dismissTimeWarning = () => {
+                ui.showTimeWarning = false;
+                ui.timeWarningEnded = false;
+            };
+            const closeTimeWarningOnKey = () => {
+                if (ui.showTimeWarning) dismissTimeWarning();
+            };
+            onMounted(() => {
+                loadData();
+                window.addEventListener('keydown', closeTimeWarningOnKey);
+            });
+            onUnmounted(() => {
+                window.removeEventListener('keydown', closeTimeWarningOnKey);
+            });
+
+            return {
+                config, status, ui, input, allPlayers, match, queue,
+                editingPlayerId, editCadastroName, editCadastroInputRef,
+                formattedTime, arrivedCount,
+                addPlayers, resetAll, resetarPartida, generateInitialTeams, markAllArrivedAndQueue, onArrivedChange, startEditCadastro, saveCadastroName, removeFromCadastro,
+                removeFromQueue, numberQueueNames, movePlayerUp, movePlayerDown, addGoalToPlayer,
+                toggleTimer, resetTimer, adjustTime, setTimeZero, adjustScore, endMatch, nextMatch, clearTeams, shuffleTeams,
+                movePlayerToQueue, movePlayerToTeam,
+                onDragStart, onDragStartFromRegister, onDrop, onDropOnRegister, onDropOnQueueCard, onDropOnTeamCard, saveData,
+                dismissTimeWarning
+            };
+        }
+    });
+
+    app.component('player-card', {
+        props: ['player', 'index', 'mini', 'showRemove', 'showReorder', 'isFirst', 'isLast', 'showMoveToQueue', 'showMoveToTeams', 'team'],
+        template: '#player-card-template',
+        data() { return { isDragOver: false, editing: false, editName: '' }; },
+        methods: {
+            onDragOver() { this.isDragOver = true; },
+            onDrop(event) {
+                this.isDragOver = false;
+                this.$emit('drop-on-card', this.player.id);
+            },
+            startEdit() {
+                this.editing = true;
+                this.editName = this.player.name || '';
+                this.$nextTick(() => this.$refs.editInput?.focus());
+            },
+            saveName() {
+                const n = (this.editName || '').trim();
+                if (n) this.player.name = n;
+                this.editing = false;
+                this.$emit('update-name');
+            }
+        }
+    });
+
+    app.mount('#app');
+</script>
+</body>
+</html>
