@@ -21,6 +21,7 @@
         ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
         
         .drag-over-item { border-top: 2px solid #34d399 !important; }
+        .list-fixed-h { overflow-y: auto; scrollbar-gutter: stable; }
 
         /* Animação rápida de bola quando sai gol */
         .confetti-overlay {
@@ -116,11 +117,17 @@
             0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 40px rgba(180, 83, 9, 0.8); }
             50% { opacity: 0.9; transform: scale(1.02); box-shadow: 0 0 60px rgba(251, 191, 36, 0.5); }
         }
+
+        /* ========== Mobile: body e #app permitem scroll (layout mobile é bloco separado) ========== */
+        @media (max-width: 1023px) {
+            body { overflow: auto; padding-bottom: 5rem; }
+            #app { overflow-y: auto; overflow-x: hidden; min-height: 100%; height: auto; }
+        }
     </style>
 </head>
 <body class="bg-gray-950 text-gray-100 h-screen w-screen flex flex-col text-xs overflow-hidden">
 
-<div id="app" class="flex flex-col h-full w-full p-2 gap-2 max-w-[1600px] mx-auto">
+<div id="app" class="flex flex-col h-full w-full p-2 gap-2 max-w-[1600px] mx-auto lg:overflow-hidden">
 
     <!-- Animação rápida de bola quando marca gol -->
     <div v-if="ui.showGoalConfetti" class="confetti-overlay">
@@ -165,6 +172,8 @@
         </div>
     </div>
     
+    <!-- ========== LAYOUT DESKTOP (visível apenas em lg e acima) ========== -->
+    <div class="hidden lg:flex flex-col flex-1 min-h-0 w-full">
     <header class="bg-gray-900 p-2 rounded-lg border border-gray-800 flex-shrink-0 flex justify-between items-center gap-2">
         <div>
             <h1 class="text-sm font-bold text-emerald-400 flex items-center gap-2">
@@ -186,7 +195,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-1 min-h-0">
         
-        <section class="lg:col-span-2 flex flex-col bg-gray-900 rounded-lg border border-gray-800 h-full overflow-hidden">
+        <section class="lg:col-span-2 flex flex-col bg-gray-900 rounded-lg border border-gray-800 h-full overflow-hidden mobile-cadastro-section mobile-order-1">
             <div class="flex-shrink-0 border-b border-gray-800">
                 <div @click="ui.showRegister = !ui.showRegister" class="p-2 bg-gray-800 cursor-pointer flex justify-between items-center hover:bg-gray-750 transition">
                     <h2 class="font-bold text-gray-300 flex items-center gap-1 text-[11px]"><i class="ph ph-users"></i> Cadastro</h2>
@@ -215,7 +224,7 @@
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto p-1.5 bg-gray-900" @dragover.prevent @drop="onDropOnRegister($event)">
+            <div class="flex-1 overflow-y-auto p-1.5 bg-gray-900 mobile-cadastro-list" @dragover.prevent @drop="onDropOnRegister($event)">
                 <ul class="space-y-1">
                     <li v-for="(p, idx) in allPlayers" :key="p.id" 
                         class="flex items-center justify-between bg-gray-800 p-1 rounded border border-gray-700 group hover:border-gray-600 transition draggable-item"
@@ -246,13 +255,13 @@
             
         </section>
 
-        <section class="lg:col-span-7 flex flex-col gap-2 h-full min-h-0">
+        <section class="lg:col-span-7 flex flex-col gap-2 h-full min-h-0 mobile-center-section mobile-order-2">
             
             <div class="bg-gray-900 rounded-lg border border-gray-800 shadow relative flex-shrink-0">
                 <div class="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-yellow-500 via-gray-500 to-blue-500 opacity-60"></div>
                 
                 <div class="p-2 flex items-center justify-between">
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 mobile-hide-placares">
                         <div class="flex flex-col items-center">
                             <span class="text-[9px] font-bold text-yellow-400 uppercase">Time Amarelo</span>
                             <div class="flex items-center gap-1 bg-black/30 rounded p-0.5 border border-yellow-600/30">
@@ -263,7 +272,7 @@
                         </div>
                     </div>
 
-                    <div class="flex flex-col items-center">
+                    <div class="flex flex-col items-center mobile-timer-full">
                         <div class="text-3xl font-mono-nums font-bold tracking-widest leading-none" :class="{'text-red-500 animate-pulse': match.timeLeft < 60 && match.timeLeft > 0, 'text-white': match.timeLeft >= 60}">
                             {{ formattedTime }}
                         </div>
@@ -319,7 +328,7 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 mobile-hide-placares">
                          <div class="flex flex-col items-center">
                             <span class="text-[9px] font-bold text-blue-400 uppercase">Time Azul</span>
                             <div class="flex items-center gap-1 bg-black/30 rounded p-0.5 border border-blue-600/30">
@@ -332,15 +341,24 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 flex-1 min-h-0">
-                <div class="bg-yellow-950/30 border border-yellow-500/30 rounded-lg flex flex-col shadow-inner overflow-hidden" 
+            <div class="grid grid-cols-2 gap-2 flex-1 min-h-0 mobile-teams-stack">
+                <div class="bg-yellow-950/30 border border-yellow-500/30 rounded-lg flex flex-col shadow-inner overflow-hidden mobile-team-card" 
                      @dragover.prevent @drop="onDrop($event, 'teamA')">
                     <div class="bg-yellow-900/30 p-1 border-b border-yellow-500/20 text-center flex-shrink-0 flex items-center justify-center gap-1.5">
                         <i v-if="match.lastWinner === 'A'" class="ph ph-crown text-yellow-300 text-sm" title="Vencedor da última partida"></i>
                         <span class="text-[9px] font-bold text-yellow-400 uppercase tracking-widest">TIME AMARELO</span>
                         <i v-if="match.lastWinner === 'A'" class="ph ph-crown text-yellow-300 text-sm" title="Vencedor da última partida"></i>
                     </div>
-                    <div class="p-1.5 flex-1 overflow-y-auto space-y-1">
+                    <!-- Placar Time Amarelo (só mobile) -->
+                    <div class="flex flex-col items-center py-2 border-b border-yellow-500/20 flex-shrink-0 bg-yellow-900/20 lg:hidden">
+                        <span class="text-[9px] font-bold text-yellow-400 uppercase">Placar</span>
+                        <div class="flex items-center gap-1 bg-black/30 rounded p-0.5 border border-yellow-600/30">
+                            <button @click="adjustScore('A', -1)" class="w-8 h-8 hover:bg-gray-700 rounded text-gray-400 flex items-center justify-center"><i class="ph ph-minus"></i></button>
+                            <span class="text-xl font-mono-nums font-bold w-8 text-center text-yellow-400">{{ match.scoreA }}</span>
+                            <button @click="adjustScore('A', 1)" class="w-8 h-8 hover:bg-yellow-900/50 rounded text-yellow-400 flex items-center justify-center"><i class="ph ph-plus"></i></button>
+                        </div>
+                    </div>
+                    <div class="p-1.5 flex-1 overflow-y-auto space-y-1 mobile-team-box">
                         <player-card
                             v-for="p in match.teamA"
                             :key="p.id"
@@ -359,14 +377,23 @@
                     </div>
                 </div>
 
-                <div class="bg-blue-950/30 border border-blue-500/30 rounded-lg flex flex-col shadow-inner overflow-hidden"
+                <div class="bg-blue-950/30 border border-blue-500/30 rounded-lg flex flex-col shadow-inner overflow-hidden mobile-team-card"
                      @dragover.prevent @drop="onDrop($event, 'teamB')">
                     <div class="bg-blue-900/30 p-1 border-b border-blue-500/20 text-center flex-shrink-0 flex items-center justify-center gap-1.5">
                         <i v-if="match.lastWinner === 'B'" class="ph ph-crown text-blue-300 text-sm" title="Vencedor da última partida"></i>
                         <span class="text-[9px] font-bold text-blue-400 uppercase tracking-widest">TIME AZUL</span>
                         <i v-if="match.lastWinner === 'B'" class="ph ph-crown text-blue-300 text-sm" title="Vencedor da última partida"></i>
                     </div>
-                    <div class="p-1.5 flex-1 overflow-y-auto space-y-1">
+                    <!-- Placar Time Azul (só mobile) -->
+                    <div class="flex flex-col items-center py-2 border-b border-blue-500/20 flex-shrink-0 bg-blue-900/20 lg:hidden">
+                        <span class="text-[9px] font-bold text-blue-400 uppercase">Placar</span>
+                        <div class="flex items-center gap-1 bg-black/30 rounded p-0.5 border border-blue-600/30">
+                            <button @click="adjustScore('B', -1)" class="w-8 h-8 hover:bg-gray-700 rounded text-gray-400 flex items-center justify-center"><i class="ph ph-minus"></i></button>
+                            <span class="text-xl font-mono-nums font-bold w-8 text-center text-blue-400">{{ match.scoreB }}</span>
+                            <button @click="adjustScore('B', 1)" class="w-8 h-8 hover:bg-blue-900/50 rounded text-blue-400 flex items-center justify-center"><i class="ph ph-plus"></i></button>
+                        </div>
+                    </div>
+                    <div class="p-1.5 flex-1 overflow-y-auto space-y-1 mobile-team-box">
                         <player-card
                             v-for="p in match.teamB"
                             :key="p.id"
@@ -402,7 +429,7 @@
 
         </section>
 
-        <section class="lg:col-span-3 flex flex-col gap-2 h-full min-h-0 overflow-hidden">
+        <section class="lg:col-span-3 flex flex-col gap-2 h-full min-h-0 overflow-hidden mobile-fila-section mobile-order-3">
             
             <div class="bg-gray-900 rounded-lg border border-gray-800 flex flex-col overflow-hidden flex-1 min-h-0">
                 <div class="p-1.5 bg-gray-800 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
@@ -445,6 +472,158 @@
 
         </section>
     </div>
+    </div>
+    <!-- fim layout desktop -->
+
+    <!-- ========== LAYOUT MOBILE (visível apenas abaixo de lg, estilo do anexo) ========== -->
+    <div class="flex flex-col lg:hidden w-full max-w-md mx-auto gap-6 pb-20 px-2">
+        <section class="bg-gray-900 rounded-xl border border-gray-800 shadow-lg">
+            <div class="p-3 bg-gray-800/50 border-b border-gray-700 flex justify-between items-center">
+                <h2 class="text-xs font-bold uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                    <i class="ph ph-users"></i> Cadastro
+                </h2>
+            </div>
+            <div class="p-3 space-y-2">
+                <textarea v-model="input.lines" placeholder="Digite ou cole os nomes aqui..." 
+                    class="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm h-20 focus:ring-1 focus:ring-emerald-500 outline-none resize-none"></textarea>
+                <button @click="addPlayers" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg text-xs uppercase transition active:scale-95">
+                    Adicionar Jogadores
+                </button>
+            </div>
+        </section>
+
+        <section class="bg-gray-900 rounded-xl border border-gray-800 flex flex-col shadow-lg overflow-hidden">
+            <div class="px-3 py-2 bg-gray-800/30 border-b border-gray-800 flex justify-between items-center">
+                <span class="text-[10px] font-bold text-gray-500 uppercase">Lista de Entrada ({{ allPlayers.length }})</span>
+                <button @click="markAllArrivedAndQueue" class="text-cyan-500 text-[10px] font-bold hover:underline">✅ Todos Chegaram</button>
+            </div>
+            <div class="list-fixed-h h-[400px] p-2 space-y-1">
+                <div v-for="p in allPlayers" :key="p.id" class="flex items-center justify-between bg-gray-800/40 p-2 rounded-lg border border-gray-700/50">
+                    <span class="text-xs font-medium truncate text-gray-300">{{ p.name }}</span>
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" v-model="p.arrived" @change="onArrivedChange(p)" class="w-5 h-5 accent-emerald-500">
+                        <button @click="removeFromCadastro(p)" class="text-red-500 p-1"><i class="ph ph-trash"></i></button>
+                    </div>
+                </div>
+                <div v-if="allPlayers.length === 0" class="h-full flex items-center justify-center text-gray-600 text-[10px] uppercase italic">Nenhum jogador pendente</div>
+            </div>
+        </section>
+
+        <section class="bg-gray-900 rounded-xl border border-gray-800 p-4 shadow-2xl flex flex-col items-center gap-4">
+            <div class="text-6xl font-mono-nums font-black tracking-tighter text-white">
+                {{ formattedTime }}
+            </div>
+            <div class="flex gap-2 w-full">
+                <button @click="toggleTimer" class="flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition active:scale-95" 
+                    :class="match.timerRunning ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white'">
+                    {{ match.timerRunning ? 'Pausar' : 'Iniciar Tempo' }}
+                </button>
+                <button @click="resetarPartida" class="px-4 py-3 bg-gray-800 rounded-xl border border-gray-700 text-red-400">
+                    <i class="ph ph-arrow-counter-clockwise"></i>
+                </button>
+            </div>
+            <div class="grid grid-cols-3 gap-2 w-full">
+                <!-- Linha 1 -->
+                <button @click="adjustTime(60)" class="bg-green-600 py-2 rounded-lg text-[10px] font-bold border border-gray-700">+1 MIN</button>
+                <button @click="adjustTime(30)" class="bg-green-600 py-2 rounded-lg text-[10px] font-bold border border-gray-700">+30 SEG</button>
+                <button @click="adjustTime(10)" class="bg-green-600 py-2 rounded-lg text-[10px] font-bold border border-gray-700">+10 SEG</button>
+                <!-- Linha 2 -->
+                <button @click="adjustTime(-60)" class="bg-red-600 py-2 rounded-lg text-[10px] font-bold border border-gray-700">-1 MIN</button>
+                <button @click="adjustTime(-30)" class="bg-red-600 py-2 rounded-lg text-[10px] font-bold border border-gray-700">-30 SEG</button>
+                <button @click="adjustTime(-10)" class="bg-red-600 py-2 rounded-lg text-[10px] font-bold border border-gray-700">-10 SEG</button>
+                <!-- Linha 3: RESET sozinho na coluna do meio -->
+                <button
+                    @click="resetTimer(status.isFirstMatch)"
+                    class="col-start-2 bg-red-900/30 py-2 rounded-lg text-[10px] font-bold text-red-500 border border-red-700"
+                >
+                    RESET
+                </button>
+            </div>
+        </section>
+
+        <section class="flex flex-col gap-3">
+            <div class="flex items-center justify-between bg-yellow-500 rounded-xl p-4 shadow-lg">
+                <div class="flex items-center gap-2">
+                    <i v-if="match.lastWinner === 'A'" class="ph ph-crown text-yellow-900 text-lg" title="Vencedor da última partida"></i>
+                    <span class="font-black text-lg text-yellow-950 uppercase tracking-tighter">TIME AMARELO</span>
+                    <i v-if="match.lastWinner === 'A'" class="ph ph-crown text-yellow-900 text-lg" title="Vencedor da última partida"></i>
+                </div>
+                <div class="flex items-center gap-4 bg-black/20 px-4 py-1 rounded-full border border-white/20">
+                    <button @click="adjustScore('A', -1)" class="text-white text-2xl font-bold">-</button>
+                    <span class="text-3xl font-mono-nums font-black text-white w-8 text-center">{{ match.scoreA }}</span>
+                    <button @click="adjustScore('A', 1)" class="text-white text-2xl font-bold">+</button>
+                </div>
+            </div>
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-2 h-[210px] list-fixed-h space-y-1 shadow-inner">
+                <player-card v-for="p in match.teamA" :key="p.id" :player="p" team="A" :show-move-to-queue="true" @move-to-queue="movePlayerToQueue" @goal-click="addGoalToPlayer" @update-name="saveData"></player-card>
+                <div v-if="match.teamA.length === 0" class="h-full flex items-center justify-center text-[10px] text-gray-700 uppercase italic">Arraste ou sorteie o time...</div>
+            </div>
+        </section>
+
+        <section class="flex flex-col gap-3">
+            <div class="flex items-center justify-between bg-blue-600 rounded-xl p-4 shadow-lg">
+                <div class="flex items-center gap-2">
+                    <i v-if="match.lastWinner === 'B'" class="ph ph-crown text-blue-50 text-lg" title="Vencedor da última partida"></i>
+                    <span class="font-black text-lg text-blue-50 uppercase tracking-tighter">TIME AZUL</span>
+                    <i v-if="match.lastWinner === 'B'" class="ph ph-crown text-blue-50 text-lg" title="Vencedor da última partida"></i>
+                </div>
+                <div class="flex items-center gap-4 bg-black/20 px-4 py-1 rounded-full border border-white/20">
+                    <button @click="adjustScore('B', -1)" class="text-white text-2xl font-bold">-</button>
+                    <span class="text-3xl font-mono-nums font-black text-white w-8 text-center">{{ match.scoreB }}</span>
+                    <button @click="adjustScore('B', 1)" class="text-white text-2xl font-bold">+</button>
+                </div>
+            </div>
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-2 h-[210px] list-fixed-h space-y-1 shadow-inner">
+                <player-card v-for="p in match.teamB" :key="p.id" :player="p" team="B" :show-move-to-queue="true" @move-to-queue="movePlayerToQueue" @goal-click="addGoalToPlayer" @update-name="saveData"></player-card>
+                <div v-if="match.teamB.length === 0" class="h-full flex items-center justify-center text-[10px] text-gray-700 uppercase italic">Arraste ou sorteie o time...</div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-2 gap-2">
+            <button @click="generateInitialTeams" :disabled="status.teamsGenerated" class="bg-purple-700 hover:bg-purple-600 disabled:opacity-30 text-white font-bold py-4 rounded-xl text-xs uppercase flex items-center justify-center gap-2 active:scale-95 transition">
+                <i class="ph ph-shuffle"></i> Sortear Times
+            </button>
+            <button @click="clearTeams" class="bg-red-700 hover:bg-red-600 text-white font-bold py-4 rounded-xl text-xs uppercase active:scale-95 transition">
+                Limpar Tábua
+            </button>
+            <button @click="nextMatch" class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl text-xs uppercase flex items-center justify-center gap-2 active:scale-95 transition shadow-xl">
+                Próximo (Rotação) <i class="ph ph-caret-right"></i>
+            </button>
+        </section>
+
+        <section class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden shadow-lg mb-8">
+            <div class="p-3 bg-gray-800/80 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-xs font-bold text-yellow-500 uppercase flex items-center gap-2">
+                    <i class="ph ph-list-numbers"></i> Fila de Espera (Próximos)
+                </h3>
+                <span class="bg-black text-yellow-500 px-2 py-0.5 rounded text-xs font-mono font-bold">{{ queue.length }}</span>
+            </div>
+            <div class="p-2 space-y-1 max-h-[400px] overflow-y-auto">
+                <template v-for="(p, index) in queue" :key="p.id">
+                    <player-card 
+                        :player="p" 
+                        :mini="true" 
+                        :show-remove="true" 
+                        :show-move-to-teams="true" 
+                        :is-first="index === 0" 
+                        :is-last="index === queue.length - 1"
+                        @remove-click="removeFromQueue" 
+                        @move-up="movePlayerUp" 
+                        @move-down="movePlayerDown" 
+                        @move-to-team="movePlayerToTeam" 
+                        @goal-click="addGoalToPlayer" 
+                        @update-name="saveData"
+                    ></player-card>
+                    <div 
+                        v-if="(index + 1) % 4 === 0 && index < queue.length - 1" 
+                        class="py-1 my-0.5 border-t border-dashed border-yellow-600/50"
+                    ></div>
+                </template>
+                <div v-if="queue.length === 0" class="text-center text-gray-600 text-[10px] py-10 uppercase italic">Ninguém na espera</div>
+            </div>
+        </section>
+    </div>
+    <!-- fim layout mobile -->
 
 </div>
 
@@ -908,6 +1087,12 @@
                 saveData();
             };
 
+            // Botão de reset rápido do layout mobile: encerra a partida atual,
+            // marca o vencedor pelo placar e reseta o tempo (mesmo comportamento de resetarPartida).
+            const resetarTempoSomente = () => {
+                resetarPartida();
+            };
+
             const adjustTime = (seconds) => {
                 match.timeLeft = Math.max(0, match.timeLeft + seconds);
                 saveData();
@@ -1185,7 +1370,7 @@
                 formattedTime, arrivedCount,
                 addPlayers, resetAll, resetarPartida, generateInitialTeams, markAllArrivedAndQueue, onArrivedChange, startEditCadastro, saveCadastroName, removeFromCadastro,
                 removeFromQueue, numberQueueNames, movePlayerUp, movePlayerDown, addGoalToPlayer,
-                toggleTimer, resetTimer, adjustTime, setTimeZero, adjustScore, endMatch, nextMatch, clearTeams, shuffleTeams,
+                toggleTimer, resetTimer, resetarTempoSomente, adjustTime, setTimeZero, adjustScore, endMatch, nextMatch, clearTeams, shuffleTeams,
                 movePlayerToQueue, movePlayerToTeam,
                 onDragStart, onDragStartFromRegister, onDrop, onDropOnRegister, onDropOnQueueCard, onDropOnTeamCard, saveData,
                 dismissTimeWarning
