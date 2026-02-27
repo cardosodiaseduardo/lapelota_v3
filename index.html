@@ -595,10 +595,15 @@
             <div class="p-3 bg-gray-800/80 border-b border-gray-700 flex justify-between items-center">
                 <h3 class="text-xs font-bold text-yellow-500 uppercase flex items-center gap-2">
                     <i class="ph ph-list-numbers"></i> Fila de Espera (Próximos)
+                    <!-- Mesmo botão #️⃣ do desktop para numerar a fila -->
+                    <button type="button" @click="numberQueueNames" class="p-1 rounded hover:bg-yellow-900/30 text-yellow-500 hover:text-yellow-400 transition" title="Numerar jogadores na ordem da fila (#1 Nome, #2 Nome, ...)">
+                        <span class="text-sm leading-none">#️⃣</span>
+                    </button>
                 </h3>
                 <span class="bg-black text-yellow-500 px-2 py-0.5 rounded text-xs font-mono font-bold">{{ queue.length }}</span>
             </div>
-            <div class="p-2 space-y-1 max-h-[400px] overflow-y-auto">
+            <!-- No mobile deixamos a fila crescer e usamos o scroll da página -->
+            <div class="p-2 space-y-1">
                 <template v-for="(p, index) in queue" :key="p.id">
                     <player-card 
                         :player="p" 
@@ -639,6 +644,10 @@
         @dragover.prevent="onDragOver"
         @dragleave="isDragOver = false"
         @drop.stop="onDrop"
+        @pointerdown="onPointerDown"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
+        @click="onCardClick"
     >
         <div class="flex items-center gap-1.5 overflow-hidden w-full" @dblclick.stop="!editing && startEdit()">
             <span v-if="index" class="text-[9px] font-mono bg-gray-900 w-3.5 h-3.5 flex items-center justify-center rounded text-gray-400 flex-shrink-0 leading-none">{{ index }}</span>
@@ -647,8 +656,8 @@
                 <span :class="mini ? 'text-[10px]' : 'text-xs'">🙋‍♂️</span>
                 <span>{{ player.matchesPlayed || 0 }}</span>
             </span>
-            <!-- Card: gols (clicável para +1 gol, antes do nome) -->
-            <span @click.stop="$emit('goal-click', player.id)" class="flex-shrink-0 inline-flex items-center justify-center gap-1 w-[39px] h-[23px] rounded-md bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 font-bold leading-none cursor-pointer hover:bg-emerald-900/50 transition select-none" :class="mini ? 'text-[8px]' : 'text-[9px]'" :title="(player.goals || 0) + ' gol(s) — Clique para adicionar gol'">
+            <!-- Card: gols (clicável para +1 gol, antes do nome) — apenas no desktop -->
+            <span @click.stop="$emit('goal-click', player.id)" class="hidden lg:inline-flex flex-shrink-0 items-center justify-center gap-1 w-[39px] h-[23px] rounded-md bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 font-bold leading-none cursor-pointer hover:bg-emerald-900/50 transition select-none" :class="mini ? 'text-[8px]' : 'text-[9px]'" :title="(player.goals || 0) + ' gol(s) — Clique para adicionar gol'">
                 <i class="ph ph-soccer-ball" :class="mini ? 'text-[8px]' : 'text-[9px]'"></i>
                 <span>{{ player.goals || 0 }}</span>
             </span>
@@ -663,7 +672,8 @@
             </div>
         </div>
         
-        <div class="flex items-center gap-0.5 ml-2">
+        <!-- Ações laterais (mover para fila/times, reordenar, remover) — apenas no desktop -->
+        <div class="hidden lg:flex items-center gap-0.5 ml-2">
             <!-- Botão seta vermelha para mover do time para fila (aparece no hover quando está nos times) -->
             <button v-if="showMoveToQueue" @click.stop="$emit('move-to-queue', player.id)" class="opacity-0 group-hover:opacity-100 bg-red-600 hover:bg-red-700 text-white p-0.5 rounded transition flex-shrink-0" title="Mover para fila de espera">
                 <i class="ph ph-arrow-right text-[10px]"></i>
@@ -1381,7 +1391,15 @@
     app.component('player-card', {
         props: ['player', 'index', 'mini', 'showRemove', 'showReorder', 'isFirst', 'isLast', 'showMoveToQueue', 'showMoveToTeams', 'team'],
         template: '#player-card-template',
-        data() { return { isDragOver: false, editing: false, editName: '' }; },
+        data() { 
+            return { 
+                isDragOver: false, 
+                editing: false, 
+                editName: '',
+                longPressTimer: null,
+                isLongPressActive: false
+            }; 
+        },
         methods: {
             onDragOver() { this.isDragOver = true; },
             onDrop(event) {
@@ -1398,6 +1416,31 @@
                 if (n) this.player.name = n;
                 this.editing = false;
                 this.$emit('update-name');
+            },
+            onPointerDown(e) {
+                // Long-press apenas em dispositivos menores que lg (mobile)
+                if (window.innerWidth >= 1024) return;
+                if (e.pointerType === 'mouse') return;
+                this.longPressTimer = setTimeout(() => {
+                    this.isLongPressActive = true;
+                    this.$emit('mobile-reorder-start', this.player.id);
+                }, 300);
+            },
+            onPointerUp() {
+                if (this.longPressTimer) {
+                    clearTimeout(this.longPressTimer);
+                    this.longPressTimer = null;
+                }
+            },
+            onCardClick() {
+                // No desktop não abre modal
+                if (window.innerWidth >= 1024) return;
+                // Se foi um long-press para reordenar, não abre modal
+                if (this.isLongPressActive) {
+                    // Mantém o estado de long-press ativo até o usuário usar os botões de mover
+                    return;
+                }
+                this.$emit('card-click', this.player.id);
             }
         }
     });
