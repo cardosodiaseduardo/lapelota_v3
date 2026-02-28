@@ -10,8 +10,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; overflow: hidden; } /* Remove scroll da página */
-        .draggable-item { cursor: grab; touch-action: none; }
-        .draggable-item:active { cursor: grabbing; }
         .font-mono-nums { font-variant-numeric: tabular-nums; }
         
         /* Scrollbar fina e escura */
@@ -19,8 +17,6 @@
         ::-webkit-scrollbar-track { background: #111827; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
-        
-        .drag-over-item { border-top: 2px solid #34d399 !important; }
         .list-fixed-h { overflow-y: auto; scrollbar-gutter: stable; }
 
         /* Animação rápida de bola quando sai gol */
@@ -196,6 +192,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-1 min-h-0">
         
         <section class="lg:col-span-2 flex flex-col bg-gray-900 rounded-lg border border-gray-800 h-full overflow-hidden mobile-cadastro-section mobile-order-1">
+            
             <div class="flex-shrink-0 border-b border-gray-800">
                 <div @click="ui.showRegister = !ui.showRegister" class="p-2 bg-gray-800 cursor-pointer flex justify-between items-center hover:bg-gray-750 transition">
                     <h2 class="font-bold text-gray-300 flex items-center gap-1 text-[11px]"><i class="ph ph-users"></i> Cadastro</h2>
@@ -224,12 +221,10 @@
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto p-1.5 bg-gray-900 mobile-cadastro-list" @dragover.prevent @drop="onDropOnRegister($event)">
+            <div class="flex-1 overflow-y-auto p-1.5 bg-gray-900 mobile-cadastro-list">
                 <ul class="space-y-1">
                     <li v-for="(p, idx) in allPlayers" :key="p.id" 
-                        class="flex items-center justify-between bg-gray-800 p-1 rounded border border-gray-700 group hover:border-gray-600 transition draggable-item"
-                        draggable="true"
-                        @dragstart="onDragStartFromRegister($event, p)">
+                        class="flex items-center justify-between bg-gray-800 p-1 rounded border border-gray-700 group hover:border-gray-600 transition">
                         <div class="flex items-center gap-1.5 overflow-hidden flex-1 min-w-0" @dblclick.stop="editingPlayerId !== p.id && startEditCadastro(p)">
                             <span class="text-[9px] text-gray-500 font-mono w-3 text-right flex-shrink-0">{{ idx + 1 }}</span>
                             <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-blue-500"></span>
@@ -342,8 +337,7 @@
             </div>
 
             <div class="grid grid-cols-2 gap-2 flex-1 min-h-0 mobile-teams-stack">
-                <div class="bg-yellow-950/30 border border-yellow-500/30 rounded-lg flex flex-col shadow-inner overflow-hidden mobile-team-card" 
-                     @dragover.prevent @drop="onDrop($event, 'teamA')">
+                <div class="bg-yellow-950/30 border border-yellow-500/30 rounded-lg flex flex-col shadow-inner overflow-hidden mobile-team-card">
                     <div class="bg-yellow-900/30 p-1 border-b border-yellow-500/20 text-center flex-shrink-0 flex items-center justify-center gap-1.5">
                         <i v-if="match.lastWinner === 'A'" class="ph ph-crown text-yellow-300 text-sm" title="Vencedor da última partida"></i>
                         <span class="text-[9px] font-bold text-yellow-400 uppercase tracking-widest">TIME AMARELO</span>
@@ -365,9 +359,7 @@
                             :player="p"
                             team="A"
                             :show-move-to-queue="true"
-                            @dragstart="onDragStart($event, p, 'teamA')"
                             @move-to-queue="movePlayerToQueue"
-                            @drop-on-card="onDropOnTeamCard($event, 'teamA')"
                             @goal-click="addGoalToPlayer"
                             @update-name="saveData"
                         ></player-card>
@@ -377,8 +369,7 @@
                     </div>
                 </div>
 
-                <div class="bg-blue-950/30 border border-blue-500/30 rounded-lg flex flex-col shadow-inner overflow-hidden mobile-team-card"
-                     @dragover.prevent @drop="onDrop($event, 'teamB')">
+                <div class="bg-blue-950/30 border border-blue-500/30 rounded-lg flex flex-col shadow-inner overflow-hidden mobile-team-card">
                     <div class="bg-blue-900/30 p-1 border-b border-blue-500/20 text-center flex-shrink-0 flex items-center justify-center gap-1.5">
                         <i v-if="match.lastWinner === 'B'" class="ph ph-crown text-blue-300 text-sm" title="Vencedor da última partida"></i>
                         <span class="text-[9px] font-bold text-blue-400 uppercase tracking-widest">TIME AZUL</span>
@@ -400,9 +391,7 @@
                             :player="p"
                             team="B"
                             :show-move-to-queue="true"
-                            @dragstart="onDragStart($event, p, 'teamB')"
                             @move-to-queue="movePlayerToQueue"
-                            @drop-on-card="onDropOnTeamCard($event, 'teamB')"
                             @goal-click="addGoalToPlayer"
                             @update-name="saveData"
                         ></player-card>
@@ -441,7 +430,7 @@
                     </h3>
                     <span class="bg-gray-950 text-[9px] px-1.5 rounded text-gray-400 border border-gray-700">{{ queue.length }}</span>
                 </div>
-                <div class="flex-1 p-1.5 overflow-y-auto bg-black/20" @dragover.prevent @drop="onDrop($event, 'queue')">
+                <div class="flex-1 p-1.5 overflow-y-auto bg-black/20">
                     <div class="space-y-0.5">
                         <template v-for="(p, index) in queue" :key="p.id">
                             <player-card 
@@ -452,8 +441,6 @@
                                 :show-move-to-teams="true"
                                 :is-first="index === 0"
                                 :is-last="index === queue.length - 1"
-                                @dragstart="onDragStart($event, p, 'queue')"
-                                @drop-on-card="onDropOnQueueCard"
                                 @remove-click="removeFromQueue"
                                 @move-up="movePlayerUp"
                                 @move-down="movePlayerDown"
@@ -477,6 +464,8 @@
 
     <!-- ========== LAYOUT MOBILE (visível apenas abaixo de lg, estilo do anexo) ========== -->
     <div class="flex flex-col lg:hidden w-full max-w-md mx-auto gap-6 pb-20 px-2">
+        
+        
         <section class="bg-gray-900 rounded-xl border border-gray-800 shadow-lg">
             <div class="p-3 bg-gray-800/50 border-b border-gray-700 flex justify-between items-center">
                 <h2 class="text-xs font-bold uppercase tracking-widest text-emerald-400 flex items-center gap-2">
@@ -543,7 +532,7 @@
 
         <section class="flex flex-col gap-3">
             <div class="flex items-center justify-between bg-yellow-500 rounded-xl p-4 shadow-lg">
-                <div class="flex items-center gap-2">
+                <div @click="openMobileTeamModal('A')" class="flex items-center gap-2 cursor-pointer active:opacity-80 transition">
                     <i v-if="match.lastWinner === 'A'" class="ph ph-crown text-yellow-900 text-lg" title="Vencedor da última partida"></i>
                     <span class="font-black text-lg text-yellow-950 uppercase tracking-tighter">TIME AMARELO</span>
                     <i v-if="match.lastWinner === 'A'" class="ph ph-crown text-yellow-900 text-lg" title="Vencedor da última partida"></i>
@@ -555,14 +544,14 @@
                 </div>
             </div>
             <div class="bg-gray-900 border border-gray-800 rounded-xl p-2 h-[210px] list-fixed-h space-y-1 shadow-inner">
-                <player-card v-for="p in match.teamA" :key="p.id" :player="p" team="A" :show-move-to-queue="true" @move-to-queue="movePlayerToQueue" @goal-click="addGoalToPlayer" @update-name="saveData"></player-card>
+                <player-card v-for="p in match.teamA" :key="p.id" :player="p" team="A" :show-move-to-queue="true" @move-to-queue="movePlayerToQueue" @goal-click="addGoalToPlayer" @update-name="saveData" @card-click="openMobileModal(p.id, 'teamA')"></player-card>
                 <div v-if="match.teamA.length === 0" class="h-full flex items-center justify-center text-[10px] text-gray-700 uppercase italic">Arraste ou sorteie o time...</div>
             </div>
         </section>
 
         <section class="flex flex-col gap-3">
             <div class="flex items-center justify-between bg-blue-600 rounded-xl p-4 shadow-lg">
-                <div class="flex items-center gap-2">
+                <div @click="openMobileTeamModal('B')" class="flex items-center gap-2 cursor-pointer active:opacity-80 transition">
                     <i v-if="match.lastWinner === 'B'" class="ph ph-crown text-blue-50 text-lg" title="Vencedor da última partida"></i>
                     <span class="font-black text-lg text-blue-50 uppercase tracking-tighter">TIME AZUL</span>
                     <i v-if="match.lastWinner === 'B'" class="ph ph-crown text-blue-50 text-lg" title="Vencedor da última partida"></i>
@@ -574,7 +563,7 @@
                 </div>
             </div>
             <div class="bg-gray-900 border border-gray-800 rounded-xl p-2 h-[210px] list-fixed-h space-y-1 shadow-inner">
-                <player-card v-for="p in match.teamB" :key="p.id" :player="p" team="B" :show-move-to-queue="true" @move-to-queue="movePlayerToQueue" @goal-click="addGoalToPlayer" @update-name="saveData"></player-card>
+                <player-card v-for="p in match.teamB" :key="p.id" :player="p" team="B" :show-move-to-queue="true" @move-to-queue="movePlayerToQueue" @goal-click="addGoalToPlayer" @update-name="saveData" @card-click="openMobileModal(p.id, 'teamB')"></player-card>
                 <div v-if="match.teamB.length === 0" class="h-full flex items-center justify-center text-[10px] text-gray-700 uppercase italic">Arraste ou sorteie o time...</div>
             </div>
         </section>
@@ -618,6 +607,7 @@
                         @move-to-team="movePlayerToTeam" 
                         @goal-click="addGoalToPlayer" 
                         @update-name="saveData"
+                        @card-click="openMobileModal(p.id, 'queue')"
                     ></player-card>
                     <div 
                         v-if="(index + 1) % 4 === 0 && index < queue.length - 1" 
@@ -627,26 +617,92 @@
                 <div v-if="queue.length === 0" class="text-center text-gray-600 text-[10px] py-10 uppercase italic">Ninguém na espera</div>
             </div>
         </section>
+
+        <div class="flex items-center justify-end gap-2 py-2 text-[10px] font-bold">
+            <span class="text-gray-500 uppercase">©la_pelota_v3 </span>
+            <!-- <span class="text-emerald-400">{{ status.isFirstMatch ? '10 min' : '7 min' }}</span> -->
+            <span class="text-gray-600">|</span>
+            <button @click="resetAll" class="text-red-400 hover:text-red-300 transition uppercase tracking-wide">
+                Resetar tudo
+            </button>
+        </div>
+
+        
     </div>
     <!-- fim layout mobile -->
+
+    <!-- Modais mobile: opções ao clicar no jogador (só visíveis em telas < lg) -->
+    <div v-if="ui.mobileModalOpen && ui.mobileModalPlayer" class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 lg:hidden" @click.self="closeMobileModal">
+        <div class="w-full max-w-md bg-gray-900 border-t border-gray-700 rounded-t-2xl shadow-2xl p-4 pb-8" @click.stop>
+            <div class="flex items-center justify-between mb-4">
+                <input v-model="ui.mobileModalName" type="text" class="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm font-medium text-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Nome do jogador" />
+                <button @click="closeMobileModal" class="ml-2 p-2 text-gray-400 hover:text-white rounded-lg">Fechar</button>
+            </div>
+            <!-- Modal para jogador no time (A ou B) -->
+            <div v-if="ui.mobileModalContext === 'teamA' || ui.mobileModalContext === 'teamB'" class="flex flex-wrap gap-3">
+                <button @click="movePlayerToQueue(ui.mobileModalPlayer.id); closeMobileModal()" class="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">
+                    <i class="ph ph-arrow-right"></i> Ir para Fila
+                </button>
+                <button :disabled="getModalPlayerIndex() <= 0" @click="movePlayerUpInModal()" class="flex items-center justify-center w-12 h-12 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-700" title="Subir posição">
+                    <i class="ph ph-caret-up text-xl"></i>
+                </button>
+                <button :disabled="getModalPlayerIndex() < 0 || getModalPlayerIndex() >= getModalList().length - 1" @click="movePlayerDownInModal()" class="flex items-center justify-center w-12 h-12 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-700" title="Descer posição">
+                    <i class="ph ph-caret-down text-xl"></i>
+                </button>
+                <button @click="addGoalToPlayer(ui.mobileModalPlayer.id); closeMobileModal()" class="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm">
+                    <i class="ph ph-soccer-ball"></i> +1 Gol
+                </button>
+            </div>
+            <!-- Modal para jogador na fila -->
+            <div v-if="ui.mobileModalContext === 'queue'" class="grid grid-cols-2 gap-3">
+                <button @click="movePlayerToTeam(ui.mobileModalPlayer.id, 'A'); closeMobileModal()" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-yellow-600 hover:bg-yellow-500 text-white font-bold text-sm">
+                    <i class="ph ph-circle"></i> Time Amarelo
+                </button>
+                <button @click="movePlayerToTeam(ui.mobileModalPlayer.id, 'B'); closeMobileModal()" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm">
+                    <i class="ph ph-circle"></i> Time Azul
+                </button>
+                <button :disabled="getModalPlayerIndex() <= 0" @click="movePlayerUpInModal()" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-700" title="Subir posição">
+                    <i class="ph ph-caret-up text-xl"></i> Up
+                </button>
+                <button :disabled="getModalPlayerIndex() < 0 || getModalPlayerIndex() >= getModalList().length - 1" @click="movePlayerDownInModal()" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-700" title="Descer posição">
+                    <i class="ph ph-caret-down text-xl"></i> Down
+                </button>
+                <button @click="addGoalToPlayer(ui.mobileModalPlayer.id)" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm">
+                    <i class="ph ph-soccer-ball"></i> +1 Gol
+                </button>
+                <button @click="removeGoalFromPlayer(ui.mobileModalPlayer.id)" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">
+                    <i class="ph ph-soccer-ball"></i> -1 Gol
+                </button>
+                <button @click="if(confirm('Remover este jogador de toda a aplicação?')) { removePlayerFromEverywhere(ui.mobileModalPlayer.id); closeMobileModal(); }" class="col-span-2 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-800 hover:bg-red-700 text-white font-bold text-sm">
+                    <i class="ph ph-trash"></i> Excluir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal mobile: mover time inteiro para a fila (ao clicar no nome do time) -->
+    <div v-if="ui.mobileTeamModalOpen && ui.mobileTeamModalContext" class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 lg:hidden" @click.self="closeMobileTeamModal">
+        <div class="w-full max-w-md bg-gray-900 border-t border-gray-700 rounded-t-2xl shadow-2xl p-4 pb-8" @click.stop>
+            <div class="flex items-center justify-between mb-4">
+                <span class="font-bold text-gray-200">{{ ui.mobileTeamModalContext === 'A' ? 'Time Amarelo' : 'Time Azul' }}</span>
+                <button @click="closeMobileTeamModal" class="p-2 text-gray-400 hover:text-white rounded-lg">Fechar</button>
+            </div>
+            <button @click="moveAllTeamToQueue(ui.mobileTeamModalContext)" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">
+                <i class="ph ph-arrow-right"></i> Mandar para a fila
+            </button>
+        </div>
+    </div>
 
 </div>
 
 <script type="text/x-template" id="player-card-template">
     <div 
-        class="draggable-item rounded flex justify-between items-center shadow-sm border-l-[3px] select-none transition group relative"
+        class="rounded flex justify-between items-center shadow-sm border-l-[3px] select-none transition group relative cursor-default"
         :class="[
             team === 'A' ? 'bg-yellow-500/20 hover:bg-yellow-500/30 border-yellow-600' : team === 'B' ? 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-600' : 'bg-gray-800 hover:bg-gray-700 border-blue-600',
-            mini ? 'p-1 h-6' : 'p-1.5 mb-1',
-            isDragOver ? 'drag-over-item' : ''
+            mini ? 'p-1 h-6' : 'p-1.5 mb-1'
         ]"
-        draggable="true"
-        @dragover.prevent="onDragOver"
-        @dragleave="isDragOver = false"
-        @drop.stop="onDrop"
-        @pointerdown="onPointerDown"
-        @pointerup="onPointerUp"
-        @pointercancel="onPointerUp"
+        @touchend.prevent="onTouchEnd"
         @click="onCardClick"
     >
         <div class="flex items-center gap-1.5 overflow-hidden w-full" @dblclick.stop="!editing && startEdit()">
@@ -656,8 +712,8 @@
                 <span :class="mini ? 'text-[10px]' : 'text-xs'">🙋‍♂️</span>
                 <span>{{ player.matchesPlayed || 0 }}</span>
             </span>
-            <!-- Card: gols (clicável para +1 gol, antes do nome) — apenas no desktop -->
-            <span @click.stop="$emit('goal-click', player.id)" class="hidden lg:inline-flex flex-shrink-0 items-center justify-center gap-1 w-[39px] h-[23px] rounded-md bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 font-bold leading-none cursor-pointer hover:bg-emerald-900/50 transition select-none" :class="mini ? 'text-[8px]' : 'text-[9px]'" :title="(player.goals || 0) + ' gol(s) — Clique para adicionar gol'">
+            <!-- Card: gols (clicável para +1 gol, antes do nome) -->
+            <span @click.stop="$emit('goal-click', player.id)" class="inline-flex flex-shrink-0 items-center justify-center gap-1 w-[39px] h-[23px] rounded-md bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 font-bold leading-none cursor-pointer hover:bg-emerald-900/50 transition select-none" :class="mini ? 'text-[8px]' : 'text-[9px]'" :title="(player.goals || 0) + ' gol(s) — Clique para adicionar gol'">
                 <i class="ph ph-soccer-ball" :class="mini ? 'text-[8px]' : 'text-[9px]'"></i>
                 <span>{{ player.goals || 0 }}</span>
             </span>
@@ -724,7 +780,11 @@
                 lastUpdate: Date.now()
             });
 
-            const ui = reactive({ showRegister: true, showGoalConfetti: false, showAlertModal: false, showTimeWarning: false, timeWarningMessage: '', timeWarningEnded: false });
+            const ui = reactive({ 
+                showRegister: true, showGoalConfetti: false, showAlertModal: false, showTimeWarning: false, timeWarningMessage: '', timeWarningEnded: false,
+                mobileModalOpen: false, mobileModalContext: null, mobileModalPlayer: null, mobileModalName: '',
+                mobileTeamModalOpen: false, mobileTeamModalContext: null
+            });
             const input = reactive({ lines: '' });
             const editingPlayerId = ref(null);
             const editCadastroName = ref('');
@@ -735,8 +795,6 @@
             const queue = ref([]);
 
             let timerInterval = null;
-            let draggedItem = null;
-            let sourceList = null;
             let confettiTimeout = null;
             const alertTimeWarningShown = ref(false);
 
@@ -920,23 +978,61 @@
                 saveData();
             };
 
-            const onDragStartFromRegister = (evt, player) => {
-                draggedItem = player;
-                sourceList = 'register';
-                evt.dataTransfer.effectAllowed = 'move';
-            };
-
-            const onDropOnRegister = (evt) => {
-                // Não faz nada ao soltar no cadastro (área apenas de origem)
-                draggedItem = null;
-                sourceList = null;
-            };
-
             const removeFromQueue = (id) => {
                 if(confirm("Remover este jogador da fila de espera?")) {
                     queue.value = queue.value.filter(p => p.id !== id);
                     saveData();
                 }
+            };
+
+            const removePlayerFromEverywhere = (id) => {
+                allPlayers.value = allPlayers.value.filter(p => p.id !== id);
+                queue.value = queue.value.filter(p => p.id !== id);
+                match.teamA = match.teamA.filter(p => p.id !== id);
+                match.teamB = match.teamB.filter(p => p.id !== id);
+                saveData();
+            };
+
+            const openMobileModal = (playerId, context) => {
+                let player = null;
+                if (context === 'teamA') player = match.teamA.find(p => p.id === playerId);
+                else if (context === 'teamB') player = match.teamB.find(p => p.id === playerId);
+                else if (context === 'queue') player = queue.value.find(p => p.id === playerId);
+                if (!player) return;
+                ui.mobileModalPlayer = player;
+                ui.mobileModalName = player.name || '';
+                ui.mobileModalContext = context;
+                ui.mobileModalOpen = true;
+            };
+
+            const closeMobileModal = () => {
+                if (ui.mobileModalPlayer && (ui.mobileModalName || '').trim()) {
+                    ui.mobileModalPlayer.name = ui.mobileModalName.trim();
+                }
+                ui.mobileModalOpen = false;
+                ui.mobileModalContext = null;
+                ui.mobileModalPlayer = null;
+                ui.mobileModalName = '';
+                saveData();
+            };
+
+            const openMobileTeamModal = (team) => {
+                ui.mobileTeamModalContext = team;
+                ui.mobileTeamModalOpen = true;
+            };
+
+            const closeMobileTeamModal = () => {
+                ui.mobileTeamModalOpen = false;
+                ui.mobileTeamModalContext = null;
+            };
+
+            const moveAllTeamToQueue = (team) => {
+                const arr = team === 'A' ? match.teamA : match.teamB;
+                queue.value.push(...arr);
+                if (team === 'A') match.teamA = [];
+                else match.teamB = [];
+                saveData();
+                closeMobileTeamModal();
             };
 
             // Adicionar 1 gol ao jogador (atualiza em cadastro, fila e times para manter sincronizado)
@@ -953,6 +1049,15 @@
                     ui.showGoalConfetti = false;
                     confettiTimeout = null;
                 }, 800);
+                saveData();
+            };
+
+            const removeGoalFromPlayer = (playerId) => {
+                const subOne = (p) => { if (p.id === playerId) p.goals = Math.max(0, (p.goals || 0) - 1); };
+                allPlayers.value.forEach(subOne);
+                queue.value.forEach(subOne);
+                match.teamA.forEach(subOne);
+                match.teamB.forEach(subOne);
                 saveData();
             };
 
@@ -978,6 +1083,37 @@
                 if (index < queue.value.length - 1) {
                     // Troca com o jogador abaixo
                     [queue.value[index], queue.value[index + 1]] = [queue.value[index + 1], queue.value[index]];
+                    saveData();
+                }
+            };
+
+            const getModalList = () => {
+                if (ui.mobileModalContext === 'teamA') return match.teamA;
+                if (ui.mobileModalContext === 'teamB') return match.teamB;
+                if (ui.mobileModalContext === 'queue') return queue.value;
+                return [];
+            };
+
+            const getModalPlayerIndex = () => {
+                const list = getModalList();
+                const idx = list.findIndex(p => p.id === ui.mobileModalPlayer?.id);
+                return idx >= 0 ? idx : -1;
+            };
+
+            const movePlayerUpInModal = () => {
+                const list = getModalList();
+                const index = getModalPlayerIndex();
+                if (index > 0) {
+                    [list[index - 1], list[index]] = [list[index], list[index - 1]];
+                    saveData();
+                }
+            };
+
+            const movePlayerDownInModal = () => {
+                const list = getModalList();
+                const index = getModalPlayerIndex();
+                if (index >= 0 && index < list.length - 1) {
+                    [list[index], list[index + 1]] = [list[index + 1], list[index]];
                     saveData();
                 }
             };
@@ -1248,117 +1384,6 @@
                 saveData();
             };
 
-            // Drag & Drop
-            const onDragStart = (evt, player, listName) => {
-                draggedItem = player;
-                sourceList = listName;
-                evt.dataTransfer.effectAllowed = 'move';
-            };
-
-            const onDrop = (evt, targetList) => {
-                if (!draggedItem || sourceList === targetList) return;
-
-                // Se vem do cadastro (register), exibe avisos e adiciona à fila
-                if (sourceList === 'register') {
-                    if (targetList === 'queue') {
-                        let warnings = [];
-                        if (!draggedItem.arrived) {
-                            warnings.push("⚠️ Este jogador ainda NÃO CHEGOU!");
-                        }
-                        if (warnings.length > 0) {
-                            alert(warnings.join("\n"));
-                        }
-                        // Adiciona à fila mesmo assim
-                        if (!queue.value.find(q => q.id === draggedItem.id)) {
-                            queue.value.push({ ...draggedItem });
-                        }
-                        // Remove do cadastro
-                        allPlayers.value = allPlayers.value.filter(p => p.id !== draggedItem.id);
-                    }
-                    draggedItem = null;
-                    sourceList = null;
-                    saveData();
-                    return;
-                }
-
-                const removeFromList = (listName) => {
-                    if (listName === 'teamA') match.teamA = match.teamA.filter(p => p.id !== draggedItem.id);
-                    else if (listName === 'teamB') match.teamB = match.teamB.filter(p => p.id !== draggedItem.id);
-                    else if (listName === 'queue') queue.value = queue.value.filter(p => p.id !== draggedItem.id);
-                };
-                removeFromList(sourceList);
-
-                if (targetList === 'queue') queue.value.push(draggedItem); 
-                else if (targetList === 'teamA') match.teamA.push(draggedItem);
-                else if (targetList === 'teamB') match.teamB.push(draggedItem);
-
-                draggedItem = null;
-                saveData();
-            };
-
-            // Reordenar / inserir jogadores diretamente dentro dos times ao soltar sobre um card
-            const onDropOnTeamCard = (targetPlayerId, targetTeam) => {
-                if (!draggedItem) return;
-
-                const targetArray = targetTeam === 'teamA' ? match.teamA : match.teamB;
-
-                if (sourceList === targetTeam) {
-                    // Reordenação dentro do mesmo time
-                    const fromIndex = targetArray.findIndex(p => p.id === draggedItem.id);
-                    const toIndex = targetArray.findIndex(p => p.id === targetPlayerId);
-
-                    if (fromIndex > -1 && toIndex > -1) {
-                        const [movedPlayer] = targetArray.splice(fromIndex, 1);
-                        targetArray.splice(toIndex, 0, movedPlayer);
-                    }
-                } else {
-                    // Remover da lista de origem
-                    if (sourceList === 'teamA') match.teamA = match.teamA.filter(p => p.id !== draggedItem.id);
-                    else if (sourceList === 'teamB') match.teamB = match.teamB.filter(p => p.id !== draggedItem.id);
-                    else if (sourceList === 'queue') queue.value = queue.value.filter(p => p.id !== draggedItem.id);
-
-                    // Inserir no time alvo na posição do card alvo
-                    const toIndex = targetArray.findIndex(p => p.id === targetPlayerId);
-                    if (toIndex > -1) {
-                        targetArray.splice(toIndex, 0, draggedItem);
-                    } else {
-                        targetArray.push(draggedItem);
-                    }
-                }
-
-                draggedItem = null;
-                sourceList = null;
-                saveData();
-            };
-
-            const onDropOnQueueCard = (targetPlayerId) => {
-                if (!draggedItem) return;
-                
-                if (sourceList === 'queue') {
-                    const fromIndex = queue.value.findIndex(p => p.id === draggedItem.id);
-                    const toIndex = queue.value.findIndex(p => p.id === targetPlayerId);
-                    
-                    if (fromIndex > -1 && toIndex > -1) {
-                        const [movedPlayer] = queue.value.splice(fromIndex, 1);
-                        queue.value.splice(toIndex, 0, movedPlayer);
-                    }
-                } else {
-                    if (sourceList === 'teamA') match.teamA = match.teamA.filter(p => p.id !== draggedItem.id);
-                    else if (sourceList === 'teamB') match.teamB = match.teamB.filter(p => p.id !== draggedItem.id);
-                    
-                    const toIndex = queue.value.findIndex(p => p.id === targetPlayerId);
-                    if(toIndex > -1) {
-                        queue.value.splice(toIndex, 0, draggedItem);
-                    } else {
-                        queue.value.push(draggedItem);
-                    }
-                }
-                
-                draggedItem = null;
-                sourceList = null;
-                saveData();
-            };
-
             const dismissTimeWarning = () => {
                 ui.showTimeWarning = false;
                 ui.timeWarningEnded = false;
@@ -1379,10 +1404,12 @@
                 editingPlayerId, editCadastroName, editCadastroInputRef,
                 formattedTime, arrivedCount,
                 addPlayers, resetAll, resetarPartida, generateInitialTeams, markAllArrivedAndQueue, onArrivedChange, startEditCadastro, saveCadastroName, removeFromCadastro,
-                removeFromQueue, numberQueueNames, movePlayerUp, movePlayerDown, addGoalToPlayer,
+                removeFromQueue, removePlayerFromEverywhere, numberQueueNames, movePlayerUp, movePlayerDown, addGoalToPlayer, removeGoalFromPlayer,
                 toggleTimer, resetTimer, resetarTempoSomente, adjustTime, setTimeZero, adjustScore, endMatch, nextMatch, clearTeams, shuffleTeams,
                 movePlayerToQueue, movePlayerToTeam,
-                onDragStart, onDragStartFromRegister, onDrop, onDropOnRegister, onDropOnQueueCard, onDropOnTeamCard, saveData,
+                openMobileModal, closeMobileModal, openMobileTeamModal, closeMobileTeamModal, moveAllTeamToQueue,
+                getModalList, getModalPlayerIndex, movePlayerUpInModal, movePlayerDownInModal,
+                saveData,
                 dismissTimeWarning
             };
         }
@@ -1392,20 +1419,9 @@
         props: ['player', 'index', 'mini', 'showRemove', 'showReorder', 'isFirst', 'isLast', 'showMoveToQueue', 'showMoveToTeams', 'team'],
         template: '#player-card-template',
         data() { 
-            return { 
-                isDragOver: false, 
-                editing: false, 
-                editName: '',
-                longPressTimer: null,
-                isLongPressActive: false
-            }; 
+            return { editing: false, editName: '' }; 
         },
         methods: {
-            onDragOver() { this.isDragOver = true; },
-            onDrop(event) {
-                this.isDragOver = false;
-                this.$emit('drop-on-card', this.player.id);
-            },
             startEdit() {
                 this.editing = true;
                 this.editName = this.player.name || '';
@@ -1417,29 +1433,12 @@
                 this.editing = false;
                 this.$emit('update-name');
             },
-            onPointerDown(e) {
-                // Long-press apenas em dispositivos menores que lg (mobile)
+            onTouchEnd() {
                 if (window.innerWidth >= 1024) return;
-                if (e.pointerType === 'mouse') return;
-                this.longPressTimer = setTimeout(() => {
-                    this.isLongPressActive = true;
-                    this.$emit('mobile-reorder-start', this.player.id);
-                }, 300);
-            },
-            onPointerUp() {
-                if (this.longPressTimer) {
-                    clearTimeout(this.longPressTimer);
-                    this.longPressTimer = null;
-                }
+                this.$emit('card-click', this.player.id);
             },
             onCardClick() {
-                // No desktop não abre modal
                 if (window.innerWidth >= 1024) return;
-                // Se foi um long-press para reordenar, não abre modal
-                if (this.isLongPressActive) {
-                    // Mantém o estado de long-press ativo até o usuário usar os botões de mover
-                    return;
-                }
                 this.$emit('card-click', this.player.id);
             }
         }
