@@ -673,7 +673,7 @@
                 <button @click="removeGoalFromPlayer(ui.mobileModalPlayer.id)" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">
                     <i class="ph ph-soccer-ball"></i> -1 Gol
                 </button>
-                <button @click="if(confirm('Remover este jogador de toda a aplicação?')) { removePlayerFromEverywhere(ui.mobileModalPlayer.id); closeMobileModal(); }" class="col-span-2 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-800 hover:bg-red-700 text-white font-bold text-sm">
+                <button @click="deletePlayerFromModal()" class="col-span-2 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-800 hover:bg-red-700 text-white font-bold text-sm">
                     <i class="ph ph-trash"></i> Excluir
                 </button>
             </div>
@@ -1014,6 +1014,14 @@
                 ui.mobileModalPlayer = null;
                 ui.mobileModalName = '';
                 saveData();
+            };
+
+            const deletePlayerFromModal = () => {
+                const playerId = ui.mobileModalPlayer?.id;
+                if (playerId == null) return;
+                if (!confirm('Remover este jogador de toda a aplicação?')) return;
+                removePlayerFromEverywhere(playerId);
+                closeMobileModal();
             };
 
             const openMobileTeamModal = (team) => {
@@ -1407,7 +1415,7 @@
                 removeFromQueue, removePlayerFromEverywhere, numberQueueNames, movePlayerUp, movePlayerDown, addGoalToPlayer, removeGoalFromPlayer,
                 toggleTimer, resetTimer, resetarTempoSomente, adjustTime, setTimeZero, adjustScore, endMatch, nextMatch, clearTeams, shuffleTeams,
                 movePlayerToQueue, movePlayerToTeam,
-                openMobileModal, closeMobileModal, openMobileTeamModal, closeMobileTeamModal, moveAllTeamToQueue,
+                openMobileModal, closeMobileModal, deletePlayerFromModal, openMobileTeamModal, closeMobileTeamModal, moveAllTeamToQueue,
                 getModalList, getModalPlayerIndex, movePlayerUpInModal, movePlayerDownInModal,
                 saveData,
                 dismissTimeWarning
