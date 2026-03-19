@@ -424,7 +424,7 @@
                 <div class="p-1.5 bg-gray-800 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
                     <h3 class="text-[10px] font-bold text-yellow-500 uppercase tracking-wider flex items-center gap-1">
                         Fila de Espera (Próximos)
-                        <button type="button" @click="numberQueueNames" class="p-0.5 rounded hover:bg-yellow-900/30 text-yellow-500 hover:text-yellow-400 transition" title="Numerar jogadores na ordem da fila (#1 Nome, #2 Nome, ...)">
+                        <button type="button" @click="numberQueueNames" class="p-0.5 rounded hover:bg-yellow-900/30 text-yellow-500 hover:text-yellow-400 transition" title="Numerar jogadores sem #X (considera times e fila; continua a partir da maior marcação)">
                             <span class="text-sm leading-none">#️⃣</span>
                         </button>
                     </h3>
@@ -572,20 +572,21 @@
             <button @click="generateInitialTeams" :disabled="status.teamsGenerated" class="bg-purple-700 hover:bg-purple-600 disabled:opacity-30 text-white font-bold py-4 rounded-xl text-xs uppercase flex items-center justify-center gap-2 active:scale-95 transition">
                 <i class="ph ph-shuffle"></i> Sortear Times
             </button>
-            <button @click="clearTeams" class="bg-red-700 hover:bg-red-600 text-white font-bold py-4 rounded-xl text-xs uppercase active:scale-95 transition">
+            <!-- <button @click="clearTeams" class="bg-red-700 hover:bg-red-600 text-white font-bold py-4 rounded-xl text-xs uppercase active:scale-95 transition">
                 Limpar Tábua
-            </button>
-            <button @click="nextMatch" class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl text-xs uppercase flex items-center justify-center gap-2 active:scale-95 transition shadow-xl">
+            </button> -->
+            <!-- BOTÃO DESATIVADO: DESATIVAR PRÓXIMO -->
+            <!-- <button @click="nextMatch" class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl text-xs uppercase flex items-center justify-center gap-2 active:scale-95 transition shadow-xl">
                 Próximo (Rotação) <i class="ph ph-caret-right"></i>
-            </button>
+            </button> -->
         </section>
 
         <section class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden shadow-lg mb-8">
-            <div class="p-3 bg-gray-800/80 border-b border-gray-700 flex justify-between items-center">
+            <div @click="openMobileQueueModal" class="p-3 bg-gray-800/80 border-b border-gray-700 flex justify-between items-center cursor-pointer active:opacity-80 transition">
                 <h3 class="text-xs font-bold text-yellow-500 uppercase flex items-center gap-2">
                     <i class="ph ph-list-numbers"></i> Fila de Espera (Próximos)
                     <!-- Mesmo botão #️⃣ do desktop para numerar a fila -->
-                    <button type="button" @click="numberQueueNames" class="p-1 rounded hover:bg-yellow-900/30 text-yellow-500 hover:text-yellow-400 transition" title="Numerar jogadores na ordem da fila (#1 Nome, #2 Nome, ...)">
+                    <button type="button" @click.stop="numberQueueNames" class="p-1 rounded hover:bg-yellow-900/30 text-yellow-500 hover:text-yellow-400 transition" title="Numerar jogadores sem #X (considera times e fila; continua a partir da maior marcação)">
                         <span class="text-sm leading-none">#️⃣</span>
                     </button>
                 </h3>
@@ -639,18 +640,24 @@
                 <button @click="closeMobileModal" class="ml-2 p-2 text-gray-400 hover:text-white rounded-lg">Fechar</button>
             </div>
             <!-- Modal para jogador no time (A ou B) -->
-            <div v-if="ui.mobileModalContext === 'teamA' || ui.mobileModalContext === 'teamB'" class="flex flex-wrap gap-3">
-                <button @click="movePlayerToQueue(ui.mobileModalPlayer.id); closeMobileModal()" class="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">
-                    <i class="ph ph-arrow-right"></i> Ir para Fila
+            <div v-if="ui.mobileModalContext === 'teamA' || ui.mobileModalContext === 'teamB'" class="grid grid-cols-2 gap-3">
+                <button @click="movePlayerToQueue(ui.mobileModalPlayer.id, 'inicio'); closeMobileModal()" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">
+                    <i class="ph ph-arrow-right"></i> P/ a Fila(Início)
                 </button>
-                <button :disabled="getModalPlayerIndex() <= 0" @click="movePlayerUpInModal()" class="flex items-center justify-center w-12 h-12 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-700" title="Subir posição">
-                    <i class="ph ph-caret-up text-xl"></i>
+                <button @click="movePlayerToQueue(ui.mobileModalPlayer.id, 'final'); closeMobileModal()" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">
+                    <i class="ph ph-arrow-right"></i> P/ a Fila(Final)
                 </button>
-                <button :disabled="getModalPlayerIndex() < 0 || getModalPlayerIndex() >= getModalList().length - 1" @click="movePlayerDownInModal()" class="flex items-center justify-center w-12 h-12 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-700" title="Descer posição">
-                    <i class="ph ph-caret-down text-xl"></i>
+                <button :disabled="getModalPlayerIndex() <= 0" @click="movePlayerUpInModal()" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-700" title="Subir posição">
+                    <i class="ph ph-caret-up text-xl"></i> Up
                 </button>
-                <button @click="addGoalToPlayer(ui.mobileModalPlayer.id); closeMobileModal()" class="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm">
+                <button :disabled="getModalPlayerIndex() < 0 || getModalPlayerIndex() >= getModalList().length - 1" @click="movePlayerDownInModal()" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-700" title="Descer posição">
+                    <i class="ph ph-caret-down text-xl"></i> Down
+                </button>
+                <button @click="addGoalToPlayer(ui.mobileModalPlayer.id)" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm">
                     <i class="ph ph-soccer-ball"></i> +1 Gol
+                </button>
+                <button @click="removeGoalFromPlayer(ui.mobileModalPlayer.id)" class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">
+                    <i class="ph ph-soccer-ball"></i> -1 Gol
                 </button>
             </div>
             <!-- Modal para jogador na fila -->
@@ -680,6 +687,24 @@
         </div>
     </div>
 
+    <!-- Modal mobile: mover 4 primeiros da fila para os times (ao clicar no título Fila de Espera) -->
+    <div v-if="ui.mobileQueueModalOpen" class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 lg:hidden" @click.self="closeMobileQueueModal">
+        <div class="w-full max-w-md bg-gray-900 border-t border-gray-700 rounded-t-2xl shadow-2xl p-4 pb-8" @click.stop>
+            <div class="flex items-center justify-between mb-4">
+                <span class="font-bold text-gray-200">Fila de Espera</span>
+                <button @click="closeMobileQueueModal" class="p-2 text-gray-400 hover:text-white rounded-lg">Fechar</button>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button @click="moveFirstFourToTeam('A')" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-yellow-600 hover:bg-yellow-500 text-white font-bold text-sm">
+                    <i class="ph ph-circle"></i> Mover os 4 primeiros (Amarelo)
+                </button>
+                <button @click="moveFirstFourToTeam('B')" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm">
+                    <i class="ph ph-circle"></i> Mover os 4 primeiros (Azul)
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal mobile: mover time inteiro para a fila (ao clicar no nome do time) -->
     <div v-if="ui.mobileTeamModalOpen && ui.mobileTeamModalContext" class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 lg:hidden" @click.self="closeMobileTeamModal">
         <div class="w-full max-w-md bg-gray-900 border-t border-gray-700 rounded-t-2xl shadow-2xl p-4 pb-8" @click.stop>
@@ -687,8 +712,13 @@
                 <span class="font-bold text-gray-200">{{ ui.mobileTeamModalContext === 'A' ? 'Time Amarelo' : 'Time Azul' }}</span>
                 <button @click="closeMobileTeamModal" class="p-2 text-gray-400 hover:text-white rounded-lg">Fechar</button>
             </div>
-            <button @click="moveAllTeamToQueue(ui.mobileTeamModalContext)" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">
-                <i class="ph ph-arrow-right"></i> Mandar para a fila
+            <button @click="moveAllTeamToQueue(ui.mobileTeamModalContext, 'inicial')" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">
+                <i class="ph ph-arrow-right"></i> Mandar Todos p/ a fila(início)
+            </button>
+            
+            <div class="h-2"></div>
+            <button @click="moveAllTeamToQueue(ui.mobileTeamModalContext, 'final')" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">
+                <i class="ph ph-arrow-right"></i> Mandar Todos p/ a fila(final)
             </button>
         </div>
     </div>
@@ -783,7 +813,8 @@
             const ui = reactive({ 
                 showRegister: true, showGoalConfetti: false, showAlertModal: false, showTimeWarning: false, timeWarningMessage: '', timeWarningEnded: false,
                 mobileModalOpen: false, mobileModalContext: null, mobileModalPlayer: null, mobileModalName: '',
-                mobileTeamModalOpen: false, mobileTeamModalContext: null
+                mobileTeamModalOpen: false, mobileTeamModalContext: null,
+                mobileQueueModalOpen: false
             });
             const input = reactive({ lines: '' });
             const editingPlayerId = ref(null);
@@ -1026,9 +1057,29 @@
                 ui.mobileTeamModalContext = null;
             };
 
-            const moveAllTeamToQueue = (team) => {
+            const openMobileQueueModal = () => {
+                ui.mobileQueueModalOpen = true;
+            };
+
+            const closeMobileQueueModal = () => {
+                ui.mobileQueueModalOpen = false;
+            };
+
+            const moveFirstFourToTeam = (team) => {
+                const toMove = queue.value.splice(0, 4);
+                if (team === 'A') match.teamA.push(...toMove);
+                else match.teamB.push(...toMove);
+                saveData();
+                closeMobileQueueModal();
+            };
+
+            const moveAllTeamToQueue = (team, type) => {
                 const arr = team === 'A' ? match.teamA : match.teamB;
-                queue.value.push(...arr);
+                if (type === 'inicial') {
+                    queue.value.unshift(...arr);
+                } else {
+                    queue.value.push(...arr);
+                }
                 if (team === 'A') match.teamA = [];
                 else match.teamB = [];
                 saveData();
@@ -1061,11 +1112,33 @@
                 saveData();
             };
 
+            const getBaseName = (name) => {
+                return (name || '').replace(/\s*[-#]\s*\d+\s*$/, '').replace(/^#\s*\d+\s*-\s*/, '').trim() || 'Jogador';
+            };
+            const extractNumberFromName = (name) => {
+                const m = (name || '').match(/#\s*(\d+)/);
+                return m ? parseInt(m[1], 10) : null;
+            };
             const numberQueueNames = () => {
-                queue.value.forEach((p, i) => {
-                    const base = (p.name || '').replace(/\s*[-#]\s*\d+\s*$/, '').replace(/^#\s*\d+\s*-\s*/, '').trim() || 'Jogador';
-                    p.name = '#' + (i + 1) + ' - ' + base;
-                });
+                const allSources = [match.teamA, match.teamB, queue.value];
+                let maxNum = 0;
+                for (const arr of allSources) {
+                    for (const p of arr) {
+                        const n = extractNumberFromName(p.name);
+                        if (n != null && n > maxNum) maxNum = n;
+                    }
+                }
+                let nextNum = maxNum + 1;
+                for (const arr of allSources) {
+                    for (const p of arr) {
+                        const n = extractNumberFromName(p.name);
+                        if (n == null) {
+                            const base = getBaseName(p.name);
+                            p.name = '#' + nextNum + ' - ' + base;
+                            nextNum++;
+                        }
+                    }
+                }
                 saveData();
             };
 
@@ -1353,16 +1426,19 @@
             };
 
             // --- MOVER JOGADOR DO TIME PARA FILA (seta vermelha) ---
-            const movePlayerToQueue = (playerId) => {
-                // Encontrar o jogador no time A ou B
+            // position: 'inicio' = início da fila, 'final' ou omitido = fim da fila
+            const movePlayerToQueue = (playerId, position) => {
                 let player = match.teamA.find(p => p.id === playerId) || match.teamB.find(p => p.id === playerId);
                 if (!player) return;
                 
-                // Remover do time
                 match.teamA = match.teamA.filter(p => p.id !== playerId);
                 match.teamB = match.teamB.filter(p => p.id !== playerId);
                 
-                queue.value.push({ ...player });
+                if (position === 'inicio') {
+                    queue.value.unshift({ ...player });
+                } else {
+                    queue.value.push({ ...player });
+                }
                 
                 saveData();
             };
@@ -1408,6 +1484,7 @@
                 toggleTimer, resetTimer, resetarTempoSomente, adjustTime, setTimeZero, adjustScore, endMatch, nextMatch, clearTeams, shuffleTeams,
                 movePlayerToQueue, movePlayerToTeam,
                 openMobileModal, closeMobileModal, openMobileTeamModal, closeMobileTeamModal, moveAllTeamToQueue,
+                openMobileQueueModal, closeMobileQueueModal, moveFirstFourToTeam,
                 getModalList, getModalPlayerIndex, movePlayerUpInModal, movePlayerDownInModal,
                 saveData,
                 dismissTimeWarning
